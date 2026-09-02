@@ -128,7 +128,7 @@ JIRA_CLIENT_SECRET=your-atlassian-oauth-client-secret
 JIRA_BASE_URL = "https://your-company.atlassian.net"
 BOARD_NAME = "COPILOT"
 PROJECT_KEY = "COP"
-ALLOWED_ORIGINS = "http://localhost:5173,https://komarevych07.github.io/time_dashboard"
+ALLOWED_ORIGINS = "http://localhost:5173,https://komarevych07.github.io"
 JIRA_CLIENT_ID = "your-atlassian-oauth-client-id"
 REDIRECT_URI = "http://localhost:5173"
 ```
