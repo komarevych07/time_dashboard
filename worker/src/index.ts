@@ -260,7 +260,7 @@ async function handleDashboard(request: Request, env: Env): Promise<Response> {
         {
           error: {
             code: 'ACTIVE_SPRINT_NOT_FOUND',
-            message: `Active sprint для проєкту "${env.PROJECT_KEY}" не знайдено.`,
+            message: `Sprint не знайдено. Project: "${env.PROJECT_KEY}", Sprint ID: "${body.sprintId ?? 'auto'}", issues: ${issues.length}. Перевір PROJECT_KEY та Sprint ID.`,
           },
         },
         404,
