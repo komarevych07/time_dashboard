@@ -523,8 +523,9 @@ async function fetchJira(context: JiraApiContext, url: string): Promise<Response
   if (!response.ok) {
     const body = await response.text();
     const error = new Error(`Jira API error: ${response.status} ${response.statusText}`);
-    (error as Error & { status?: number; body?: string }).status = response.status;
-    (error as Error & { status?: number; body?: string }).body = body;
+    (error as Error & { status?: number; body?: string; url?: string }).status = response.status;
+    (error as Error & { status?: number; body?: string; url?: string }).body = body;
+    (error as Error & { status?: number; body?: string; url?: string }).url = url;
     throw error;
   }
 
@@ -536,13 +537,14 @@ function handleJiraError(error: unknown, request: Request, env: Env): Response {
     const status = error.status as number;
 
     const detail = (error as Error & { body?: string }).body ?? '';
+    const failedUrl = (error as Error & { url?: string }).url ?? '';
 
     if (status === 401) {
       return jsonResponse(
         {
           error: {
             code: 'JIRA_AUTH_FAILED',
-            message: `Access token недійсний або прострочений. ${detail}`.trim(),
+            message: `Access token недійсний або прострочений. ${detail} URL: ${failedUrl}`.trim(),
           },
         },
         401,
