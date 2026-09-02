@@ -333,36 +333,27 @@ async function parseJsonBody<T>(request: Request): Promise<T | null> {
   }
 }
 
-async function findSprintFieldId(context: JiraApiContext): Promise<string | null> {
-  const url = `${context.jiraApiBase}/rest/api/3/field`;
-  const response = await fetchJira(context, url);
-  const fields = (await response.json()) as Array<{
-    id: string;
-    name: string;
-    schema?: { custom?: string };
-  }>;
-
-  for (const field of fields) {
-    if (field.name === 'Sprint' && field.schema?.custom === 'com.pyxis.greenhopper.jira:sprint') {
-      return field.id;
-    }
-  }
-
-  return null;
+function isSprintValue(value: unknown): value is { id: number; name: string; state: string } {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'id' in value &&
+    'name' in value &&
+    'state' in value &&
+    typeof (value as Record<string, unknown>).state === 'string'
+  );
 }
 
-function extractActiveSprint(issues: JiraIssue[], sprintFieldId: string | null): JiraSprint | null {
-  if (sprintFieldId === null) {
-    return null;
-  }
-
+function extractActiveSprint(issues: JiraIssue[]): JiraSprint | null {
   for (const issue of issues) {
-    const sprints = issue.fields[sprintFieldId] as Array<{ id: number; name: string; state: string }> | undefined;
+    for (const fieldValue of Object.values(issue.fields)) {
+      if (!Array.isArray(fieldValue)) {
+        continue;
+      }
 
-    if (Array.isArray(sprints)) {
-      for (const sprint of sprints) {
-        if (sprint.state === 'ACTIVE') {
-          return { id: sprint.id, name: sprint.name, state: sprint.state };
+      for (const item of fieldValue) {
+        if (isSprintValue(item) && item.state === 'ACTIVE') {
+          return { id: item.id, name: item.name, state: item.state };
         }
       }
     }
@@ -375,19 +366,15 @@ async function fetchActiveSprintIssues(
   context: JiraApiContext,
   projectKey: string,
 ): Promise<{ sprint: JiraSprint | null; issues: JiraIssue[] }> {
-  const sprintFieldId = await findSprintFieldId(context);
   const issues: JiraIssue[] = [];
   let startAt = 0;
   const maxResults = DEFAULT_MAX_RESULTS;
   const jql = `project = ${projectKey} AND sprint in openSprints() ORDER BY key ASC`;
-  const fields = sprintFieldId
-    ? `summary,created,priority,status,assignee,issuetype,${sprintFieldId}`
-    : 'summary,created,priority,status,assignee,issuetype';
 
   while (true) {
     const url = `${context.jiraApiBase}/rest/api/3/search?jql=${encodeURIComponent(
       jql,
-    )}&startAt=${startAt}&maxResults=${maxResults}&fields=${fields}`;
+    )}&startAt=${startAt}&maxResults=${maxResults}&fields=*all`;
     const response = await fetchJira(context, url);
     const data = (await response.json()) as {
       issues: JiraIssue[];
@@ -409,7 +396,7 @@ async function fetchActiveSprintIssues(
     startAt = processedCount;
   }
 
-  const sprint = extractActiveSprint(issues, sprintFieldId);
+  const sprint = extractActiveSprint(issues);
 
   return { sprint, issues };
 }
