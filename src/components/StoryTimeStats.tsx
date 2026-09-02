@@ -138,14 +138,14 @@ export function StoryTimeStats({ issues }: StoryTimeStatsProps) {
           className="story-stats-header-cell story-stats-sort-button"
           onClick={() => toggleSort('status')}
         >
-          Статус <SortIndicator field="status" sort={sort} />
+          <SortIndicator field="status" sort={sort} /> Статус
         </button>
         <button
           type="button"
           className="story-stats-header-cell story-stats-sort-button"
           onClick={() => toggleSort('leadTime')}
         >
-          Час (створення → зараз/Done) <SortIndicator field="leadTime" sort={sort} />
+          <SortIndicator field="leadTime" sort={sort} /> Час (створення → зараз/Done)
         </button>
         <span className="story-stats-header-cell">Last Update</span>
         <span className="story-stats-header-cell">Асайні</span>
