@@ -6,6 +6,20 @@ export interface StatusDuration {
   percentage: number;
 }
 
+export interface LinkedIssue {
+  id: string;
+  key: string;
+  summary: string;
+  priority: string;
+  status: string;
+  issueType: string;
+  assignee: string | null;
+  url: string;
+  linkType: string;
+  leadTimeSeconds: number;
+  statusDurations: StatusDuration[];
+}
+
 export interface DashboardIssue {
   id: string;
   key: string;
@@ -17,8 +31,10 @@ export interface DashboardIssue {
   issueType: string;
   url: string;
   category: Category;
+  updated: string;
   leadTimeSeconds: number;
   statusDurations: StatusDuration[];
+  linkedIssues: LinkedIssue[];
 }
 
 export interface BoardInfo {

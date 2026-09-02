@@ -38,13 +38,28 @@ interface JiraSprint {
   state: string;
 }
 
+interface JiraLinkedIssue {
+  id: string;
+  key: string;
+  self: string;
+  fields?: Partial<JiraIssueFields>;
+}
+
 interface JiraIssueFields {
   summary: string;
   created: string;
+  updated: string;
   priority?: { name: string } | null;
   status?: { name: string } | null;
   assignee?: { displayName: string } | null;
   issuetype?: { name: string } | null;
+  subtasks?: JiraLinkedIssue[];
+  issuelinks?: {
+    id: string;
+    type: { name: string; outward: string; inward: string };
+    outwardIssue?: JiraLinkedIssue;
+    inwardIssue?: JiraLinkedIssue;
+  }[];
   [key: string]: unknown;
 }
 
@@ -76,6 +91,20 @@ interface StatusDuration {
   percentage: number;
 }
 
+interface LinkedIssue {
+  id: string;
+  key: string;
+  summary: string;
+  priority: string;
+  status: string;
+  issueType: string;
+  assignee: string | null;
+  url: string;
+  linkType: string;
+  leadTimeSeconds: number;
+  statusDurations: StatusDuration[];
+}
+
 interface DashboardIssue {
   id: string;
   key: string;
@@ -87,8 +116,10 @@ interface DashboardIssue {
   issueType: string;
   url: string;
   category: 'FE' | 'BE' | 'QA' | 'AQA' | 'FLIGHT' | 'BA' | 'UX' | 'EPIC' | 'BUGS' | 'OTHER';
+  updated: string;
   leadTimeSeconds: number;
   statusDurations: StatusDuration[];
+  linkedIssues: LinkedIssue[];
 }
 
 interface DashboardResponse {
@@ -458,32 +489,156 @@ async function buildDashboardIssues(
   issues: JiraIssue[],
   baseUrl: string,
 ): Promise<DashboardIssue[]> {
+  const normalizedBaseUrl = baseUrl.replace(/\/$/, '');
+  const rawMap = new Map<string, JiraIssue>();
   const result: DashboardIssue[] = [];
 
   for (const issue of issues) {
-    const statusSince = computeStatusSince(issue);
-    const summary = issue.fields.summary ?? '';
-    const issueType = issue.fields.issuetype?.name ?? 'Unknown';
-    const statusDurations = computeStatusDurations(issue);
-    const leadTimeSeconds = computeLeadTimeSeconds(issue);
+    rawMap.set(issue.key, issue);
+  }
 
-    result.push({
-      id: issue.id,
-      key: issue.key,
-      summary,
-      priority: issue.fields.priority?.name ?? 'None',
-      status: issue.fields.status?.name ?? 'Unknown',
-      statusSince,
-      assignee: issue.fields.assignee?.displayName ?? null,
-      issueType,
-      url: `${baseUrl.replace(/\/$/, '')}/browse/${issue.key}`,
-      category: categorizeIssue(summary, issueType),
-      leadTimeSeconds,
-      statusDurations,
-    });
+  for (const issue of issues) {
+    result.push(buildBasicDashboardIssue(issue, normalizedBaseUrl));
+  }
+
+  const basicMap = new Map<string, DashboardIssue>();
+  for (const dashboardIssue of result) {
+    basicMap.set(dashboardIssue.key, dashboardIssue);
+  }
+
+  for (let index = 0; index < issues.length; index++) {
+    const rawIssue = issues[index]!;
+    const dashboardIssue = result[index]!;
+    dashboardIssue.linkedIssues = buildLinkedIssues(rawIssue, normalizedBaseUrl, rawMap, basicMap);
   }
 
   return result;
+}
+
+function buildBasicDashboardIssue(issue: JiraIssue, baseUrl: string): DashboardIssue {
+  const statusSince = computeStatusSince(issue);
+  const summary = issue.fields.summary ?? '';
+  const issueType = issue.fields.issuetype?.name ?? 'Unknown';
+  const statusDurations = computeStatusDurations(issue);
+  const leadTimeSeconds = computeLeadTimeSeconds(issue);
+
+  return {
+    id: issue.id,
+    key: issue.key,
+    summary,
+    priority: issue.fields.priority?.name ?? 'None',
+    status: issue.fields.status?.name ?? 'Unknown',
+    statusSince,
+    assignee: issue.fields.assignee?.displayName ?? null,
+    issueType,
+    url: `${baseUrl}/browse/${issue.key}`,
+    category: categorizeIssue(summary, issueType),
+    updated: issue.fields.updated,
+    leadTimeSeconds,
+    statusDurations,
+    linkedIssues: [],
+  };
+}
+
+function buildLinkedIssues(
+  rawIssue: JiraIssue,
+  baseUrl: string,
+  rawMap: Map<string, JiraIssue>,
+  basicMap: Map<string, DashboardIssue>,
+): LinkedIssue[] {
+  const linked: LinkedIssue[] = [];
+  const seenKeys = new Set<string>();
+
+  const addLinked = (key: string, linkType: string) => {
+    if (seenKeys.has(key)) {
+      return;
+    }
+    seenKeys.add(key);
+
+    const basic = basicMap.get(key);
+
+    if (basic !== undefined) {
+      linked.push({
+        id: basic.id,
+        key: basic.key,
+        summary: basic.summary,
+        priority: basic.priority,
+        status: basic.status,
+        issueType: basic.issueType,
+        assignee: basic.assignee,
+        url: basic.url,
+        linkType,
+        leadTimeSeconds: basic.leadTimeSeconds,
+        statusDurations: basic.statusDurations,
+      });
+      return;
+    }
+
+    const rawLinked = rawMap.get(key);
+
+    if (rawLinked !== undefined) {
+      const summary = rawLinked.fields.summary ?? '';
+      const issueType = rawLinked.fields.issuetype?.name ?? 'Unknown';
+
+      linked.push({
+        id: rawLinked.id,
+        key: rawLinked.key,
+        summary,
+        priority: rawLinked.fields.priority?.name ?? 'None',
+        status: rawLinked.fields.status?.name ?? 'Unknown',
+        issueType,
+        assignee: rawLinked.fields.assignee?.displayName ?? null,
+        url: `${baseUrl}/browse/${rawLinked.key}`,
+        linkType,
+        leadTimeSeconds: computeLeadTimeSeconds(rawLinked),
+        statusDurations: computeStatusDurations(rawLinked),
+      });
+      return;
+    }
+
+    const subtaskOrLink =
+      rawIssue.fields.subtasks?.find((subtask) => subtask.key === key) ??
+      rawIssue.fields.issuelinks?.find(
+        (link) => link.outwardIssue?.key === key || link.inwardIssue?.key === key,
+      )?.outwardIssue ??
+      rawIssue.fields.issuelinks?.find(
+        (link) => link.outwardIssue?.key === key || link.inwardIssue?.key === key,
+      )?.inwardIssue;
+
+    if (subtaskOrLink !== undefined) {
+      linked.push({
+        id: subtaskOrLink.id,
+        key: subtaskOrLink.key,
+        summary: subtaskOrLink.fields?.summary ?? '',
+        priority: subtaskOrLink.fields?.priority?.name ?? 'None',
+        status: subtaskOrLink.fields?.status?.name ?? 'Unknown',
+        issueType: subtaskOrLink.fields?.issuetype?.name ?? 'Unknown',
+        assignee: subtaskOrLink.fields?.assignee?.displayName ?? null,
+        url: `${baseUrl}/browse/${subtaskOrLink.key}`,
+        linkType,
+        leadTimeSeconds: 0,
+        statusDurations: [],
+      });
+    }
+  };
+
+  for (const subtask of rawIssue.fields.subtasks ?? []) {
+    addLinked(subtask.key, 'Subtask');
+  }
+
+  for (const link of rawIssue.fields.issuelinks ?? []) {
+    const typeName = link.type.name;
+
+    if (link.outwardIssue !== undefined) {
+      addLinked(link.outwardIssue.key, `${typeName}: ${link.type.outward}`);
+    }
+
+    if (link.inwardIssue !== undefined) {
+      addLinked(link.inwardIssue.key, `${typeName}: ${link.type.inward}`);
+    }
+  }
+
+  return linked;
 }
 
 function computeStatusSince(issue: JiraIssue): string {
