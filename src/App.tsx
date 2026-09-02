@@ -18,7 +18,7 @@ const TABS: TabConfig[] = [
   { key: 'UX', label: 'UX' },
   { key: 'EPIC', label: 'Epic' },
   { key: 'BUGS', label: 'Bugs' },
-  { key: 'OTHER', label: 'Інші' },
+  { key: 'ALL', label: 'Всі' },
 ];
 
 const CATEGORY_LABELS: Record<Category, string> = {
@@ -32,6 +32,7 @@ const CATEGORY_LABELS: Record<Category, string> = {
   EPIC: 'Epic',
   BUGS: 'Bugs',
   OTHER: 'Інші',
+  ALL: 'Всі',
 };
 
 const DEFAULT_SORT: SortState = { field: 'statusSince', direction: 'desc' };
@@ -112,6 +113,10 @@ function App() {
       return [];
     }
 
+    if (activeCategory === 'ALL') {
+      return data.issues;
+    }
+
     return data.issues.filter((issue) => issue.category === activeCategory);
   }, [data, activeCategory]);
 
@@ -166,6 +171,7 @@ function App() {
       EPIC: 0,
       BUGS: 0,
       OTHER: 0,
+      ALL: 0,
     };
 
     if (data === null) {
@@ -175,6 +181,8 @@ function App() {
     for (const issue of data.issues) {
       result[issue.category] += 1;
     }
+
+    result.ALL = data.issues.length;
 
     return result;
   }, [data]);
