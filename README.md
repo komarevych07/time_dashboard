@@ -1,13 +1,13 @@
 # Jira Sprint Dashboard
 
-Внутрішній dashboard для відображення задач активного sprint Jira-проєкту `COP`.
+Внутрішній dashboard для відображення задач активного sprint Jira-проєкту.
 
 ## Архітектура
 
 ```text
 ┌───────────────────┐
 │     Jira Cloud    │
-│   Board COPILOT   │
+│     Jira board    │
 └─────────┬─────────┘
           │ Jira REST API
           │ (OAuth 2.0)
@@ -46,7 +46,7 @@ Dashboard використовує **"Login with Jira"** — OAuth 2.0 (3LO) в�
 3. Увімкніть **Authorization code grants**.
 4. Додайте **Callback URL**:
    - Локально: `http://localhost:5173`
-   - Production (GitHub Pages): `https://komarevych07.github.io/time_dashboard/`
+   - Production (GitHub Pages): `https://<username>.github.io/<repo>/`
 5. Збережіть **Client ID** та **Client Secret**.
 6. У **Permissions** додайте scopes:
    - `read:jira-work` (Classic scopes)
@@ -128,9 +128,9 @@ JIRA_CLIENT_SECRET=your-atlassian-oauth-client-secret
 
 ```toml
 [vars]
-BOARD_NAME = "Main board"
-PROJECT_KEY = "COP"
-ALLOWED_ORIGINS = "http://localhost:5173,https://komarevych07.github.io"
+BOARD_NAME = "YOUR_BOARD_NAME"
+PROJECT_KEY = "YOUR_PROJECT_KEY"
+ALLOWED_ORIGINS = "http://localhost:5173,https://<username>.github.io"
 JIRA_CLIENT_ID = "your-atlassian-oauth-client-id"
 REDIRECT_URI = "http://localhost:5173"
 ```
@@ -185,7 +185,7 @@ git init
 git add .
 git commit -m "Initial Jira Sprint Dashboard"
 git branch -M main
-git remote add origin https://github.com/komarevych07/time_dashboard.git
+git remote add origin https://github.com/<username>/<repo>.git
 git push -u origin main
 ```
 
@@ -194,8 +194,8 @@ git push -u origin main
 4. Додайте Repository Variables (**Settings → Secrets and variables → Actions → Variables**):
    - `VITE_API_BASE_URL` → `https://your-worker.workers.dev`
    - `VITE_JIRA_CLIENT_ID` → ваш Atlassian Client ID
-   - `VITE_JIRA_REDIRECT_URI` → `https://komarevych07.github.io/time_dashboard/`
-   - `JIRA_BASE_URL` → `https://buntar.atlassian.net`
+   - `VITE_JIRA_REDIRECT_URI` → `https://<username>.github.io/<repo>/`
+   - `JIRA_BASE_URL` → `https://<your-domain>.atlassian.net`
 5. Додайте Worker Secret у Cloudflare dashboard:
    - `JIRA_CLIENT_SECRET`
 6. GitHub Actions автоматично задеплоїть frontend на GitHub Pages.
@@ -219,10 +219,10 @@ git push -u origin main
 Приклад:
 
 ```text
-https://buntar.atlassian.net/jira/software/c/projects/COP/boards/1375?selectedIssue=COP-1&sprint=2721
+https://<your-domain>.atlassian.net/jira/software/c/projects/YOUR_PROJECT_KEY/boards/YOUR_BOARD_ID?selectedIssue=YOUR_PROJECT_KEY-1&sprint=YOUR_SPRINT_ID
 ```
 
-Sprint ID = `2721`.
+Sprint ID = `YOUR_SPRINT_ID`.
 
 ## npm scripts
 
