@@ -4,7 +4,7 @@ compatibility_date = "2025-07-18"
 
 [vars]
 JIRA_BASE_URL = "https://buntar.atlassian.net"
-BOARD_NAME = "COPILOT"
+BOARD_NAME = "Main board"
 PROJECT_KEY = "COP"
 ALLOWED_ORIGINS = "http://localhost:5173,https://komarevych07.github.io"
 JIRA_CLIENT_ID = "LyyFc7AKr0GUZwnCyWEFzbEysKKg5IW3"
