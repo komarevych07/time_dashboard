@@ -36,7 +36,7 @@ export const LoginForm: FC<LoginFormProps> = ({ loading, error, sprintId, onSpri
           id="sprint-id"
           type="text"
           className="login-input"
-          placeholder="наприклад, 123"
+          placeholder="наприклад, 31 або Sprint 31"
           value={sprintId}
           onChange={(event) => onSprintIdChange(event.target.value)}
           disabled={loading}

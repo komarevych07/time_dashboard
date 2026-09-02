@@ -262,7 +262,7 @@ async function handleDashboard(request: Request, env: Env): Promise<Response> {
         {
           error: {
             code: 'ACTIVE_SPRINT_NOT_FOUND',
-            message: `Sprint не знайдено. Project: "${env.PROJECT_KEY}", Sprint ID: "${body.sprintId ?? 'auto'}", issues: ${issues.length}. Перевір PROJECT_KEY та Sprint ID.`,
+            message: `Sprint не знайдено. Project: "${env.PROJECT_KEY}", Sprint: "${body.sprintId ?? 'auto'}", issues: ${issues.length}. Перевір PROJECT_KEY та Sprint ID/назву.`,
           },
         },
         404,
@@ -379,6 +379,19 @@ function extractActiveSprint(issues: JiraIssue[], sprintId?: string): JiraSprint
   return fallback;
 }
 
+function buildSprintFilter(sprintId?: string): string {
+  if (sprintId === undefined || sprintId === '') {
+    return 'sprint in openSprints()';
+  }
+
+  if (/^\d+$/.test(sprintId)) {
+    return `sprint = "Sprint ${sprintId}"`;
+  }
+
+  const escaped = sprintId.replace(/"/g, '\\"');
+  return `sprint = "${escaped}"`;
+}
+
 async function fetchActiveSprintIssues(
   context: JiraApiContext,
   projectKey: string,
@@ -386,7 +399,7 @@ async function fetchActiveSprintIssues(
 ): Promise<{ sprint: JiraSprint | null; issues: JiraIssue[] }> {
   const issues: JiraIssue[] = [];
   let nextPageToken: string | null = null;
-  const sprintFilter = sprintId !== undefined && sprintId !== '' ? `sprint = ${sprintId}` : 'sprint in openSprints()';
+  const sprintFilter = buildSprintFilter(sprintId);
   const jql = `project = ${projectKey} AND ${sprintFilter} ORDER BY key ASC`;
   const url = `${context.jiraApiBase}/rest/api/3/search/jql`;
 
