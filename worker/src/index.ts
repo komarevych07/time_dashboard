@@ -79,7 +79,7 @@ interface DashboardIssue {
   assignee: string | null;
   issueType: string;
   url: string;
-  category: 'FE' | 'BE' | 'QA' | 'BUGS' | 'OTHER';
+  category: 'FE' | 'BE' | 'QA' | 'AQA' | 'FLIGHT' | 'BA' | 'BUGS' | 'OTHER';
 }
 
 interface DashboardResponse {
@@ -514,6 +514,18 @@ function categorizeIssue(summary: string, issueType: string): DashboardIssue['ca
 
   if (/\[QA\]/i.test(summary)) {
     return 'QA';
+  }
+
+  if (/\[AQA\]/i.test(summary)) {
+    return 'AQA';
+  }
+
+  if (/\[Flight\]/i.test(summary)) {
+    return 'FLIGHT';
+  }
+
+  if (/\[BA\]/i.test(summary)) {
+    return 'BA';
   }
 
   if (issueType.toLowerCase() === 'bug') {
