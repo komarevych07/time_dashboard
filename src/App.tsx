@@ -15,6 +15,8 @@ const TABS: TabConfig[] = [
   { key: 'AQA', label: 'AQA' },
   { key: 'FLIGHT', label: 'Flight' },
   { key: 'BA', label: 'BA' },
+  { key: 'UX', label: 'UX' },
+  { key: 'EPIC', label: 'Epic' },
   { key: 'BUGS', label: 'Bugs' },
   { key: 'OTHER', label: 'Інші' },
 ];
@@ -26,6 +28,8 @@ const CATEGORY_LABELS: Record<Category, string> = {
   AQA: 'AQA',
   FLIGHT: 'Flight',
   BA: 'BA',
+  UX: 'UX',
+  EPIC: 'Epic',
   BUGS: 'Bugs',
   OTHER: 'Інші',
 };
@@ -158,6 +162,8 @@ function App() {
       AQA: 0,
       FLIGHT: 0,
       BA: 0,
+      UX: 0,
+      EPIC: 0,
       BUGS: 0,
       OTHER: 0,
     };

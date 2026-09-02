@@ -25,6 +25,14 @@ export function categorizeIssue(summary: string, issueType: string): Category {
     return 'BA';
   }
 
+  if (/\[UX\]/i.test(summary)) {
+    return 'UX';
+  }
+
+  if (issueType.toLowerCase() === 'epic') {
+    return 'EPIC';
+  }
+
   if (issueType.toLowerCase() === 'bug') {
     return 'BUGS';
   }
