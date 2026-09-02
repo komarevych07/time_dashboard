@@ -1,1 +1,2 @@
+JIRA_BASE_URL=https://buntar.atlassian.net
 JIRA_CLIENT_SECRET=your-atlassian-oauth-client-secret

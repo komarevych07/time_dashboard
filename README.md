@@ -120,6 +120,7 @@ cp .dev.vars.example .dev.vars
 Відредагуйте `.dev.vars`:
 
 ```env
+JIRA_BASE_URL=https://your-company.atlassian.net
 JIRA_CLIENT_SECRET=your-atlassian-oauth-client-secret
 ```
 
@@ -127,8 +128,7 @@ JIRA_CLIENT_SECRET=your-atlassian-oauth-client-secret
 
 ```toml
 [vars]
-JIRA_BASE_URL = "https://your-company.atlassian.net"
-BOARD_NAME = "COPILOT"
+BOARD_NAME = "Main board"
 PROJECT_KEY = "COP"
 ALLOWED_ORIGINS = "http://localhost:5173,https://komarevych07.github.io"
 JIRA_CLIENT_ID = "your-atlassian-oauth-client-id"
@@ -195,6 +195,7 @@ git push -u origin main
    - `VITE_API_BASE_URL` → `https://your-worker.workers.dev`
    - `VITE_JIRA_CLIENT_ID` → ваш Atlassian Client ID
    - `VITE_JIRA_REDIRECT_URI` → `https://komarevych07.github.io/time_dashboard/`
+   - `JIRA_BASE_URL` → `https://buntar.atlassian.net`
 5. Додайте Worker Secret у Cloudflare dashboard:
    - `JIRA_CLIENT_SECRET`
 6. GitHub Actions автоматично задеплоїть frontend на GitHub Pages.
