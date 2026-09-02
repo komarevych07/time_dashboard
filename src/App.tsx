@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Header } from './components/Header';
 import { IssueTable } from './components/IssueTable';
 import { LoginForm } from './components/LoginForm';
+import { StoryTimeStats } from './components/StoryTimeStats';
 import { Tabs } from './components/Tabs';
 import { useDashboard } from './hooks/useDashboard';
 import { exchangeCode } from './services/api';
@@ -45,8 +46,11 @@ interface Filters {
   assignee: string;
 }
 
+type DashboardView = 'dashboard' | 'storyStats';
+
 function App() {
   const [tokens, setTokens] = useState<OAuthTokens | null>(null);
+  const [activeView, setActiveView] = useState<DashboardView>('dashboard');
   const [activeCategory, setActiveCategory] = useState<Category>('FE');
   const [sort, setSort] = useState<SortState>(DEFAULT_SORT);
   const [filters, setFilters] = useState<Filters>({ priority: '', status: '', assignee: '' });
@@ -225,6 +229,8 @@ function App() {
     <div className="app">
       <Header
         data={data}
+        activeView={activeView}
+        onViewChange={setActiveView}
         refreshing={refreshing}
         onRefresh={refresh}
         autoRefreshEnabled={autoRefreshEnabled}
@@ -242,7 +248,9 @@ function App() {
 
         {loading && data === null ? (
           <div className="loading-overlay">Підключення до Jira...</div>
-        ) : data === null ? null : (
+        ) : data === null ? null : activeView === 'storyStats' ? (
+          <StoryTimeStats issues={data.issues} />
+        ) : (
           <>
             <Tabs
               categories={TABS.map((tab) => tab.key)}

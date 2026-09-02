@@ -1,8 +1,12 @@
 import React from 'react';
 import type { DashboardData } from '../types/jira';
 
+type DashboardView = 'dashboard' | 'storyStats';
+
 interface HeaderProps {
   data: DashboardData | null;
+  activeView: DashboardView;
+  onViewChange: (view: DashboardView) => void;
   refreshing: boolean;
   onRefresh: () => void;
   autoRefreshEnabled: boolean;
@@ -26,6 +30,8 @@ function formatLastUpdate(loadedAt: string | undefined): string {
 
 export const Header: React.FC<HeaderProps> = ({
   data,
+  activeView,
+  onViewChange,
   refreshing,
   onRefresh,
   autoRefreshEnabled,
@@ -35,6 +41,27 @@ export const Header: React.FC<HeaderProps> = ({
     <header className="dashboard-header">
       <div className="header-main">
         <h1 className="header-title">JIRA SPRINT DASHBOARD</h1>
+
+        <div className="view-switcher" role="tablist" aria-label="Dashboard view">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeView === 'dashboard'}
+            className={`view-switcher-button ${activeView === 'dashboard' ? 'view-switcher-button-active' : ''}`}
+            onClick={() => onViewChange('dashboard')}
+          >
+            TimeTracker
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeView === 'storyStats'}
+            className={`view-switcher-button ${activeView === 'storyStats' ? 'view-switcher-button-active' : ''}`}
+            onClick={() => onViewChange('storyStats')}
+          >
+            StoryTimeStats
+          </button>
+        </div>
 
         <div className="header-meta">
           <span className="header-meta-item">

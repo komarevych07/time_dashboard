@@ -1,5 +1,11 @@
 export type Category = 'FE' | 'BE' | 'QA' | 'AQA' | 'FLIGHT' | 'BA' | 'UX' | 'EPIC' | 'BUGS' | 'OTHER' | 'ALL';
 
+export interface StatusDuration {
+  status: string;
+  durationSeconds: number;
+  percentage: number;
+}
+
 export interface DashboardIssue {
   id: string;
   key: string;
@@ -11,6 +17,8 @@ export interface DashboardIssue {
   issueType: string;
   url: string;
   category: Category;
+  leadTimeSeconds: number;
+  statusDurations: StatusDuration[];
 }
 
 export interface BoardInfo {

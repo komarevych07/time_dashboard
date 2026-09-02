@@ -66,7 +66,14 @@ interface JiraChangelogEntry {
 
 interface JiraChangelogItem {
   field: string;
+  fromString?: string;
   toString: string;
+}
+
+interface StatusDuration {
+  status: string;
+  durationSeconds: number;
+  percentage: number;
 }
 
 interface DashboardIssue {
@@ -80,6 +87,8 @@ interface DashboardIssue {
   issueType: string;
   url: string;
   category: 'FE' | 'BE' | 'QA' | 'AQA' | 'FLIGHT' | 'BA' | 'UX' | 'EPIC' | 'BUGS' | 'OTHER';
+  leadTimeSeconds: number;
+  statusDurations: StatusDuration[];
 }
 
 interface DashboardResponse {
@@ -455,6 +464,8 @@ async function buildDashboardIssues(
     const statusSince = computeStatusSince(issue);
     const summary = issue.fields.summary ?? '';
     const issueType = issue.fields.issuetype?.name ?? 'Unknown';
+    const statusDurations = computeStatusDurations(issue);
+    const leadTimeSeconds = computeLeadTimeSeconds(issue);
 
     result.push({
       id: issue.id,
@@ -467,6 +478,8 @@ async function buildDashboardIssues(
       issueType,
       url: `${baseUrl.replace(/\/$/, '')}/browse/${issue.key}`,
       category: categorizeIssue(summary, issueType),
+      leadTimeSeconds,
+      statusDurations,
     });
   }
 
@@ -501,6 +514,103 @@ function computeStatusSince(issue: JiraIssue): string {
   }
 
   return issue.fields.created;
+}
+
+function computeLeadTimeSeconds(issue: JiraIssue): number {
+  const createdTime = new Date(issue.fields.created).getTime();
+  const currentStatus = issue.fields.status?.name ?? '';
+
+  if (currentStatus.toLowerCase() === 'done') {
+    const doneTransition = findLatestDoneTransition(issue);
+
+    if (doneTransition !== null) {
+      return Math.max(0, Math.round((doneTransition.getTime() - createdTime) / 1000));
+    }
+  }
+
+  return Math.max(0, Math.round((Date.now() - createdTime) / 1000));
+}
+
+function findLatestDoneTransition(issue: JiraIssue): Date | null {
+  const entries = issue.changelog?.histories ?? [];
+  let latestDone: Date | null = null;
+
+  for (const entry of entries) {
+    const movedToDone = entry.items.some(
+      (item) => item.field === 'status' && item.toString.toLowerCase() === 'done',
+    );
+
+    if (!movedToDone) {
+      continue;
+    }
+
+    const entryDate = new Date(entry.created);
+
+    if (latestDone === null || entryDate.getTime() > latestDone.getTime()) {
+      latestDone = entryDate;
+    }
+  }
+
+  return latestDone;
+}
+
+function computeStatusDurations(issue: JiraIssue): StatusDuration[] {
+  const now = Date.now();
+  const createdTime = new Date(issue.fields.created).getTime();
+
+  const transitions = (issue.changelog?.histories ?? [])
+    .flatMap((entry) =>
+      entry.items
+        .filter((item) => item.field === 'status')
+        .map((item) => ({
+          time: new Date(entry.created).getTime(),
+          from: item.fromString,
+          to: item.toString,
+        })),
+    )
+    .sort((a, b) => a.time - b.time);
+
+  const intervals: { status: string; start: number; end: number }[] = [];
+
+  if (transitions.length === 0) {
+    intervals.push({
+      status: issue.fields.status?.name ?? 'Unknown',
+      start: createdTime,
+      end: now,
+    });
+  } else {
+    const first = transitions[0];
+
+    if (first.from) {
+      intervals.push({ status: first.from, start: createdTime, end: first.time });
+    }
+
+    for (let index = 0; index < transitions.length; index++) {
+      const transition = transitions[index];
+      const nextTime = index + 1 < transitions.length ? transitions[index + 1].time : now;
+      intervals.push({ status: transition.to, start: transition.time, end: nextTime });
+    }
+  }
+
+  const durations = new Map<string, number>();
+
+  for (const interval of intervals) {
+    const durationMs = interval.end - interval.start;
+
+    if (durationMs <= 0) {
+      continue;
+    }
+
+    durations.set(interval.status, (durations.get(interval.status) ?? 0) + durationMs);
+  }
+
+  const total = Array.from(durations.values()).reduce((sum, duration) => sum + duration, 0);
+
+  return Array.from(durations.entries()).map(([status, durationMs]) => ({
+    status,
+    durationSeconds: Math.round(durationMs / 1000),
+    percentage: total > 0 ? Math.round((durationMs / total) * 1000) / 10 : 0,
+  }));
 }
 
 function categorizeIssue(summary: string, issueType: string): DashboardIssue['category'] {
