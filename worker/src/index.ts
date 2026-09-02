@@ -617,8 +617,10 @@ function handleJiraError(error: unknown, request: Request, env: Env): Response {
     );
   }
 
+  const internalMessage = error instanceof Error ? error.message : String(error);
+
   return jsonResponse(
-    { error: { code: 'INTERNAL_ERROR', message: 'Не вдалося обробити запит.' } },
+    { error: { code: 'INTERNAL_ERROR', message: `Не вдалося обробити запит: ${internalMessage}` } },
     500,
     request,
     env,
