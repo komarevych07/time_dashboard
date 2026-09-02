@@ -53,6 +53,9 @@ interface JiraIssue {
   key: string;
   self: string;
   fields: JiraIssueFields;
+  changelog?: {
+    histories: JiraChangelogEntry[];
+  };
 }
 
 interface JiraChangelogEntry {
@@ -102,7 +105,6 @@ interface AccessibleResource {
 }
 
 const DEFAULT_MAX_RESULTS = 50;
-const CHANGELOG_MAX_RESULTS = 100;
 const ATLASSIAN_TOKEN_URL = 'https://auth.atlassian.com/oauth/token';
 const ATLASSIAN_RESOURCES_URL = 'https://api.atlassian.com/oauth/token/accessible-resources';
 
@@ -269,7 +271,7 @@ async function handleDashboard(request: Request, env: Env): Promise<Response> {
       );
     }
 
-    const dashboardIssues = await buildDashboardIssues(context, issues, env.JIRA_BASE_URL);
+    const dashboardIssues = await buildDashboardIssues(issues, env.JIRA_BASE_URL);
 
     const response: DashboardResponse = {
       board: { id: 0, name: env.BOARD_NAME },
@@ -393,6 +395,7 @@ async function fetchActiveSprintIssues(
       jql,
       maxResults: DEFAULT_MAX_RESULTS,
       fields: ['*all'],
+      expand: 'changelog',
     };
 
     if (nextPageToken !== null) {
@@ -430,14 +433,13 @@ async function fetchActiveSprintIssues(
 }
 
 async function buildDashboardIssues(
-  context: JiraApiContext,
   issues: JiraIssue[],
   baseUrl: string,
 ): Promise<DashboardIssue[]> {
   const result: DashboardIssue[] = [];
 
   for (const issue of issues) {
-    const statusSince = await computeStatusSince(context, issue);
+    const statusSince = computeStatusSince(issue);
     const summary = issue.fields.summary ?? '';
     const issueType = issue.fields.issuetype?.name ?? 'Unknown';
 
@@ -458,44 +460,27 @@ async function buildDashboardIssues(
   return result;
 }
 
-async function computeStatusSince(context: JiraApiContext, issue: JiraIssue): Promise<string> {
+function computeStatusSince(issue: JiraIssue): string {
   const currentStatus = issue.fields.status?.name ?? '';
-  let startAt = 0;
   let latestTransition: JiraChangelogEntry | null = null;
 
-  while (true) {
-    const url = `${context.jiraApiBase}/rest/api/2/issue/${issue.id}/changelog?startAt=${startAt}&maxResults=${CHANGELOG_MAX_RESULTS}`;
-    const response = await fetchJira(context, url);
-    const data = (await response.json()) as {
-      values: JiraChangelogEntry[];
-      maxResults: number;
-      total: number;
-    };
+  const entries = issue.changelog?.histories ?? [];
 
-    const entries = data.values ?? [];
+  for (const entry of entries) {
+    const hasStatusTransition = entry.items.some(
+      (item) => item.field === 'status' && item.toString === currentStatus,
+    );
 
-    for (const entry of entries) {
-      const hasStatusTransition = entry.items.some(
-        (item) => item.field === 'status' && item.toString === currentStatus,
-      );
-
-      if (!hasStatusTransition) {
-        continue;
-      }
-
-      if (
-        latestTransition === null ||
-        new Date(entry.created).getTime() > new Date(latestTransition.created).getTime()
-      ) {
-        latestTransition = entry;
-      }
+    if (!hasStatusTransition) {
+      continue;
     }
 
-    if (entries.length < data.maxResults || startAt + entries.length >= data.total) {
-      break;
+    if (
+      latestTransition === null ||
+      new Date(entry.created).getTime() > new Date(latestTransition.created).getTime()
+    ) {
+      latestTransition = entry;
     }
-
-    startAt += CHANGELOG_MAX_RESULTS;
   }
 
   if (latestTransition !== null) {
