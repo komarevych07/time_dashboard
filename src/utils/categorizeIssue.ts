@@ -13,6 +13,18 @@ export function categorizeIssue(summary: string, issueType: string): Category {
     return 'QA';
   }
 
+  if (/\[AQA\]/i.test(summary)) {
+    return 'AQA';
+  }
+
+  if (/\[Flight\]/i.test(summary)) {
+    return 'FLIGHT';
+  }
+
+  if (/\[BA\]/i.test(summary)) {
+    return 'BA';
+  }
+
   if (issueType.toLowerCase() === 'bug') {
     return 'BUGS';
   }

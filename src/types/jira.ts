@@ -1,4 +1,4 @@
-export type Category = 'FE' | 'BE' | 'QA' | 'BUGS' | 'OTHER';
+export type Category = 'FE' | 'BE' | 'QA' | 'AQA' | 'FLIGHT' | 'BA' | 'BUGS' | 'OTHER';
 
 export interface DashboardIssue {
   id: string;
