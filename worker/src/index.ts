@@ -370,12 +370,19 @@ async function fetchActiveSprintIssues(
   let startAt = 0;
   const maxResults = DEFAULT_MAX_RESULTS;
   const jql = `project = ${projectKey} AND sprint in openSprints() ORDER BY key ASC`;
+  const url = `${context.jiraApiBase}/rest/api/3/search/jql`;
 
   while (true) {
-    const url = `${context.jiraApiBase}/rest/api/3/search?jql=${encodeURIComponent(
-      jql,
-    )}&startAt=${startAt}&maxResults=${maxResults}&fields=*all`;
-    const response = await fetchJira(context, url);
+    const response = await fetchJira(context, url, {
+      method: 'POST',
+      body: {
+        jql,
+        startAt,
+        maxResults,
+        fields: ['*all'],
+      },
+    });
+
     const data = (await response.json()) as {
       issues: JiraIssue[];
       total: number;
@@ -497,14 +504,22 @@ function categorizeIssue(summary: string, issueType: string): DashboardIssue['ca
   return 'OTHER';
 }
 
-async function fetchJira(context: JiraApiContext, url: string): Promise<Response> {
+async function fetchJira(
+  context: JiraApiContext,
+  url: string,
+  options: { method?: 'GET' | 'POST'; body?: Record<string, unknown> } = {},
+): Promise<Response> {
+  const method = options.method ?? 'GET';
+  const headers: Record<string, string> = {
+    Authorization: `Bearer ${context.accessToken}`,
+    Accept: 'application/json',
+    'Content-Type': 'application/json',
+  };
+
   const response = await fetch(url, {
-    method: 'GET',
-    headers: {
-      Authorization: `Bearer ${context.accessToken}`,
-      Accept: 'application/json',
-      'Content-Type': 'application/json',
-    },
+    method,
+    headers,
+    body: method === 'POST' ? JSON.stringify(options.body) : undefined,
   });
 
   if (!response.ok) {
