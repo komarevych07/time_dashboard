@@ -16,7 +16,9 @@ export function buildAuthorizeUrl(state: string): string {
     prompt: 'consent',
   });
 
-  return `https://auth.atlassian.com/authorize?${params.toString()}`;
+  const query = params.toString().replace(/\+/g, '%20');
+
+  return `https://auth.atlassian.com/authorize?${query}`;
 }
 
 export async function exchangeCode(code: string): Promise<OAuthTokens> {
