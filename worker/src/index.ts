@@ -367,40 +367,44 @@ async function fetchActiveSprintIssues(
   projectKey: string,
 ): Promise<{ sprint: JiraSprint | null; issues: JiraIssue[] }> {
   const issues: JiraIssue[] = [];
-  let startAt = 0;
-  const maxResults = DEFAULT_MAX_RESULTS;
+  let nextPageToken: string | null = null;
   const jql = `project = ${projectKey} AND sprint in openSprints() ORDER BY key ASC`;
   const url = `${context.jiraApiBase}/rest/api/3/search/jql`;
 
   while (true) {
+    const body: Record<string, unknown> = {
+      jql,
+      maxResults: DEFAULT_MAX_RESULTS,
+      fields: ['*all'],
+    };
+
+    if (nextPageToken !== null) {
+      body.nextPageToken = nextPageToken;
+    }
+
     const response = await fetchJira(context, url, {
       method: 'POST',
-      body: {
-        jql,
-        startAt,
-        maxResults,
-        fields: ['*all'],
-      },
+      body,
     });
 
     const data = (await response.json()) as {
       issues: JiraIssue[];
-      total: number;
-      maxResults: number;
-      startAt: number;
+      isLast?: boolean;
+      nextPageToken?: string;
     };
 
     const pageIssues = data.issues ?? [];
     issues.push(...pageIssues);
 
-    const returnedCount = pageIssues.length;
-    const processedCount = startAt + returnedCount;
-
-    if (returnedCount < maxResults || processedCount >= data.total) {
+    if (data.isLast ?? data.nextPageToken === undefined) {
       break;
     }
 
-    startAt = processedCount;
+    nextPageToken = data.nextPageToken ?? null;
+
+    if (nextPageToken === null) {
+      break;
+    }
   }
 
   const sprint = extractActiveSprint(issues);
