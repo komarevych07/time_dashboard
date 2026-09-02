@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { formatDuration } from '../utils/duration';
 import { formatDateTime } from '../utils/formatDateTime';
+import { MultiSelect } from './MultiSelect';
 import type { DashboardIssue, LinkedIssue, StatusDuration } from '../types/jira';
 
 const STATUS_COLORS: Record<string, string> = {
@@ -30,8 +31,13 @@ export function StoryTimeStats({ issues }: StoryTimeStatsProps) {
     direction: 'desc',
   });
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
-  const [statusFilter, setStatusFilter] = useState<string>('');
-  const [assigneeFilter, setAssigneeFilter] = useState<string>('');
+  const [statusFilter, setStatusFilter] = useState<string[]>([]);
+  const [assigneeFilter, setAssigneeFilter] = useState<string[]>([]);
+
+  const clearFilters = () => {
+    setStatusFilter([]);
+    setAssigneeFilter([]);
+  };
 
   const filterOptions = useMemo(() => {
     const stories = issues.filter((issue) => issue.issueType.toLowerCase() === 'story');
@@ -49,12 +55,12 @@ export function StoryTimeStats({ issues }: StoryTimeStatsProps) {
         return false;
       }
 
-      if (statusFilter !== '' && issue.status !== statusFilter) {
+      if (statusFilter.length > 0 && !statusFilter.includes(issue.status)) {
         return false;
       }
 
       const normalizedAssignee = issue.assignee ?? 'Unassigned';
-      if (assigneeFilter !== '' && normalizedAssignee !== assigneeFilter) {
+      if (assigneeFilter.length > 0 && !assigneeFilter.includes(normalizedAssignee)) {
         return false;
       }
 
@@ -101,33 +107,28 @@ export function StoryTimeStats({ issues }: StoryTimeStatsProps) {
   return (
     <div className="story-stats">
       <div className="story-stats-filters">
-        <select
-          className="story-stats-filter-select"
-          value={statusFilter}
-          onChange={(event) => setStatusFilter(event.target.value)}
-          aria-label="Status filter"
-        >
-          <option value="">Всі статуси</option>
-          {filterOptions.statuses.map((status) => (
-            <option key={status} value={status}>
-              {status}
-            </option>
-          ))}
-        </select>
+        <MultiSelect
+          label="Статуси"
+          options={filterOptions.statuses}
+          selected={statusFilter}
+          onChange={setStatusFilter}
+        />
 
-        <select
-          className="story-stats-filter-select"
-          value={assigneeFilter}
-          onChange={(event) => setAssigneeFilter(event.target.value)}
-          aria-label="Assignee filter"
+        <MultiSelect
+          label="Асайні"
+          options={filterOptions.assignees}
+          selected={assigneeFilter}
+          onChange={setAssigneeFilter}
+        />
+
+        <button
+          type="button"
+          className="story-stats-filter-clear"
+          onClick={clearFilters}
+          disabled={statusFilter.length === 0 && assigneeFilter.length === 0}
         >
-          <option value="">Всі асайні</option>
-          {filterOptions.assignees.map((assignee) => (
-            <option key={assignee} value={assignee}>
-              {assignee}
-            </option>
-          ))}
-        </select>
+          Clear all filters
+        </button>
       </div>
 
       <div className="story-stats-header">

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Header } from './components/Header';
 import { IssueTable } from './components/IssueTable';
 import { LoginForm } from './components/LoginForm';
+import { MultiSelect } from './components/MultiSelect';
 import { StoryTimeStats } from './components/StoryTimeStats';
 import { Tabs } from './components/Tabs';
 import { useDashboard } from './hooks/useDashboard';
@@ -41,9 +42,9 @@ const OAUTH_STATE_STORAGE_KEY = 'jira_oauth_state';
 const SPRINT_ID_STORAGE_KEY = 'jira_manual_sprint_id';
 
 interface Filters {
-  priority: string;
-  status: string;
-  assignee: string;
+  priority: string[];
+  status: string[];
+  assignee: string[];
 }
 
 type DashboardView = 'dashboard' | 'storyStats';
@@ -53,7 +54,7 @@ function App() {
   const [activeView, setActiveView] = useState<DashboardView>('dashboard');
   const [activeCategory, setActiveCategory] = useState<Category>('FE');
   const [sort, setSort] = useState<SortState>(DEFAULT_SORT);
-  const [filters, setFilters] = useState<Filters>({ priority: '', status: '', assignee: '' });
+  const [filters, setFilters] = useState<Filters>({ priority: [], status: [], assignee: [] });
   const [manualSprintId, setManualSprintId] = useState<string>(() => {
     return window.sessionStorage.getItem(SPRINT_ID_STORAGE_KEY) ?? '';
   });
@@ -140,17 +141,17 @@ function App() {
 
   const filteredIssues = useMemo(() => {
     return categoryIssues.filter((issue) => {
-      if (filters.priority !== '' && issue.priority !== filters.priority) {
+      if (filters.priority.length > 0 && !filters.priority.includes(issue.priority)) {
         return false;
       }
 
-      if (filters.status !== '' && issue.status !== filters.status) {
+      if (filters.status.length > 0 && !filters.status.includes(issue.status)) {
         return false;
       }
 
-      if (filters.assignee !== '') {
+      if (filters.assignee.length > 0) {
         const issueAssignee = issue.assignee ?? 'Unassigned';
-        if (issueAssignee !== filters.assignee) {
+        if (!filters.assignee.includes(issueAssignee)) {
           return false;
         }
       }
@@ -207,12 +208,9 @@ function App() {
     [setSort],
   );
 
-  const handleFilterChange = useCallback(
-    (key: keyof Filters, value: string) => {
-      setFilters((current) => ({ ...current, [key]: value }));
-    },
-    [setFilters],
-  );
+  const clearFilters = useCallback(() => {
+    setFilters({ priority: [], status: [], assignee: [] });
+  }, [setFilters]);
 
   if (tokens === null) {
     return (
@@ -261,47 +259,39 @@ function App() {
             />
 
             <div className="filter-bar">
-              <select
-                className="filter-select"
-                value={filters.priority}
-                onChange={(event) => handleFilterChange('priority', event.target.value)}
-                aria-label="Priority filter"
-              >
-                <option value="">All priorities</option>
-                {filterOptions.priorities.map((priority) => (
-                  <option key={priority} value={priority}>
-                    {priority}
-                  </option>
-                ))}
-              </select>
+              <MultiSelect
+                label="Priorities"
+                options={filterOptions.priorities}
+                selected={filters.priority}
+                onChange={(selected) => setFilters((current) => ({ ...current, priority: selected }))}
+              />
 
-              <select
-                className="filter-select"
-                value={filters.status}
-                onChange={(event) => handleFilterChange('status', event.target.value)}
-                aria-label="Status filter"
-              >
-                <option value="">All statuses</option>
-                {filterOptions.statuses.map((status) => (
-                  <option key={status} value={status}>
-                    {status}
-                  </option>
-                ))}
-              </select>
+              <MultiSelect
+                label="Statuses"
+                options={filterOptions.statuses}
+                selected={filters.status}
+                onChange={(selected) => setFilters((current) => ({ ...current, status: selected }))}
+              />
 
-              <select
-                className="filter-select"
-                value={filters.assignee}
-                onChange={(event) => handleFilterChange('assignee', event.target.value)}
-                aria-label="Assignee filter"
+              <MultiSelect
+                label="Assignees"
+                options={filterOptions.assignees}
+                selected={filters.assignee}
+                onChange={(selected) => setFilters((current) => ({ ...current, assignee: selected }))}
+              />
+
+              <button
+                type="button"
+                className="filter-clear-button"
+                onClick={clearFilters}
+                disabled={
+                  filters.priority.length === 0 &&
+                  filters.status.length === 0 &&
+                  filters.assignee.length === 0
+                }
               >
-                <option value="">All assignees</option>
-                {filterOptions.assignees.map((assignee) => (
-                  <option key={assignee} value={assignee}>
-                    {assignee}
-                  </option>
-                ))}
-              </select>
+                Clear all filters
+              </button>
             </div>
 
             <IssueTable issues={sortedIssues} sort={sort} onSort={handleSort} />
