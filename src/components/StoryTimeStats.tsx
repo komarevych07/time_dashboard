@@ -30,9 +30,36 @@ export function StoryTimeStats({ issues }: StoryTimeStatsProps) {
     direction: 'desc',
   });
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+  const [statusFilter, setStatusFilter] = useState<string>('');
+  const [assigneeFilter, setAssigneeFilter] = useState<string>('');
+
+  const filterOptions = useMemo(() => {
+    const stories = issues.filter((issue) => issue.issueType.toLowerCase() === 'story');
+    const statuses = Array.from(new Set(stories.map((issue) => issue.status))).sort();
+    const assignees = Array.from(
+      new Set(stories.map((issue) => issue.assignee ?? 'Unassigned')),
+    ).sort();
+
+    return { statuses, assignees };
+  }, [issues]);
 
   const stories = useMemo(() => {
-    const filtered = issues.filter((issue) => issue.issueType.toLowerCase() === 'story');
+    const filtered = issues.filter((issue) => {
+      if (issue.issueType.toLowerCase() !== 'story') {
+        return false;
+      }
+
+      if (statusFilter !== '' && issue.status !== statusFilter) {
+        return false;
+      }
+
+      const normalizedAssignee = issue.assignee ?? 'Unassigned';
+      if (assigneeFilter !== '' && normalizedAssignee !== assigneeFilter) {
+        return false;
+      }
+
+      return true;
+    });
 
     return [...filtered].sort((a, b) => {
       if (sort.field === 'status') {
@@ -44,7 +71,7 @@ export function StoryTimeStats({ issues }: StoryTimeStatsProps) {
         ? a.leadTimeSeconds - b.leadTimeSeconds
         : b.leadTimeSeconds - a.leadTimeSeconds;
     });
-  }, [issues, sort]);
+  }, [issues, sort, statusFilter, assigneeFilter]);
 
   const toggleSort = (field: SortField) => {
     setSort((current) => ({
@@ -73,6 +100,36 @@ export function StoryTimeStats({ issues }: StoryTimeStatsProps) {
 
   return (
     <div className="story-stats">
+      <div className="story-stats-filters">
+        <select
+          className="story-stats-filter-select"
+          value={statusFilter}
+          onChange={(event) => setStatusFilter(event.target.value)}
+          aria-label="Status filter"
+        >
+          <option value="">Всі статуси</option>
+          {filterOptions.statuses.map((status) => (
+            <option key={status} value={status}>
+              {status}
+            </option>
+          ))}
+        </select>
+
+        <select
+          className="story-stats-filter-select"
+          value={assigneeFilter}
+          onChange={(event) => setAssigneeFilter(event.target.value)}
+          aria-label="Assignee filter"
+        >
+          <option value="">Всі асайні</option>
+          {filterOptions.assignees.map((assignee) => (
+            <option key={assignee} value={assignee}>
+              {assignee}
+            </option>
+          ))}
+        </select>
+      </div>
+
       <div className="story-stats-header">
         <span className="story-stats-header-cell">Номер</span>
         <span className="story-stats-header-cell story-stats-header-title">Тайтл</span>
@@ -81,14 +138,14 @@ export function StoryTimeStats({ issues }: StoryTimeStatsProps) {
           className="story-stats-header-cell story-stats-sort-button"
           onClick={() => toggleSort('status')}
         >
-          Статус {sort.field === 'status' ? (sort.direction === 'asc' ? '▲' : '▼') : ''}
+          Статус <SortIndicator field="status" sort={sort} />
         </button>
         <button
           type="button"
           className="story-stats-header-cell story-stats-sort-button"
           onClick={() => toggleSort('leadTime')}
         >
-          Час (створення → зараз/Done) {sort.field === 'leadTime' ? (sort.direction === 'asc' ? '▲' : '▼') : ''}
+          Час (створення → зараз/Done) <SortIndicator field="leadTime" sort={sort} />
         </button>
         <span className="story-stats-header-cell">Last Update</span>
         <span className="story-stats-header-cell">Асайні</span>
@@ -145,6 +202,37 @@ export function StoryTimeStats({ issues }: StoryTimeStatsProps) {
         );
       })}
     </div>
+  );
+}
+
+function SortIndicator({
+  field,
+  sort,
+}: {
+  field: SortField;
+  sort: { field: SortField; direction: SortDirection };
+}) {
+  return (
+    <span className="story-stats-sort-icons" aria-hidden="true">
+      <span
+        className={`story-stats-sort-icon ${
+          sort.field === field && sort.direction === 'asc'
+            ? 'story-stats-sort-icon-active'
+            : 'story-stats-sort-icon-inactive'
+        }`}
+      >
+        ▲
+      </span>
+      <span
+        className={`story-stats-sort-icon ${
+          sort.field === field && sort.direction === 'desc'
+            ? 'story-stats-sort-icon-active'
+            : 'story-stats-sort-icon-inactive'
+        }`}
+      >
+        ▼
+      </span>
+    </span>
   );
 }
 
