@@ -256,7 +256,7 @@ async function handleDashboard(request: Request, env: Env): Promise<Response> {
     const jiraApiBase = `https://api.atlassian.com/ex/jira/${cloudId}`;
     const context: JiraApiContext = { accessToken, jiraApiBase };
 
-    const board = await findBoard(context, env.BOARD_NAME);
+    const board = await findBoard(context, env.BOARD_NAME, env.PROJECT_KEY);
 
     if (board === null) {
       return jsonResponse(
@@ -349,8 +349,8 @@ async function parseJsonBody<T>(request: Request): Promise<T | null> {
   }
 }
 
-async function findBoard(context: JiraApiContext, boardName: string): Promise<JiraBoard | null> {
-  const url = `${context.jiraApiBase}/rest/agile/1.0/board?name=${encodeURIComponent(boardName)}`;
+async function findBoard(context: JiraApiContext, boardName: string, projectKey: string): Promise<JiraBoard | null> {
+  const url = `${context.jiraApiBase}/rest/agile/1.0/board?projectKeyOrId=${encodeURIComponent(projectKey)}&name=${encodeURIComponent(boardName)}`;
   const response = await fetchJira(context, url);
   const data = (await response.json()) as { values?: Array<{ id: number; name: string }> };
 
