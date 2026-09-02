@@ -28,10 +28,17 @@ const DEFAULT_SORT: SortState = { field: 'statusSince', direction: 'desc' };
 const OAUTH_STATE_STORAGE_KEY = 'jira_oauth_state';
 const SPRINT_ID_STORAGE_KEY = 'jira_manual_sprint_id';
 
+interface Filters {
+  priority: string;
+  status: string;
+  assignee: string;
+}
+
 function App() {
   const [tokens, setTokens] = useState<OAuthTokens | null>(null);
   const [activeCategory, setActiveCategory] = useState<Category>('FE');
   const [sort, setSort] = useState<SortState>(DEFAULT_SORT);
+  const [filters, setFilters] = useState<Filters>({ priority: '', status: '', assignee: '' });
   const [manualSprintId, setManualSprintId] = useState<string>(() => {
     return window.sessionStorage.getItem(SPRINT_ID_STORAGE_KEY) ?? '';
   });
@@ -98,9 +105,44 @@ function App() {
     return data.issues.filter((issue) => issue.category === activeCategory);
   }, [data, activeCategory]);
 
+  const filterOptions = useMemo(() => {
+    if (data === null) {
+      return { priorities: [], statuses: [], assignees: [] };
+    }
+
+    const priorities = Array.from(new Set(data.issues.map((issue) => issue.priority))).sort();
+    const statuses = Array.from(new Set(data.issues.map((issue) => issue.status))).sort();
+    const assignees = Array.from(
+      new Set(data.issues.map((issue) => issue.assignee ?? 'Unassigned')),
+    ).sort();
+
+    return { priorities, statuses, assignees };
+  }, [data]);
+
+  const filteredIssues = useMemo(() => {
+    return categoryIssues.filter((issue) => {
+      if (filters.priority !== '' && issue.priority !== filters.priority) {
+        return false;
+      }
+
+      if (filters.status !== '' && issue.status !== filters.status) {
+        return false;
+      }
+
+      if (filters.assignee !== '') {
+        const issueAssignee = issue.assignee ?? 'Unassigned';
+        if (issueAssignee !== filters.assignee) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+  }, [categoryIssues, filters]);
+
   const sortedIssues = useMemo(() => {
-    return sortIssues(categoryIssues, sort.field, sort.direction);
-  }, [categoryIssues, sort]);
+    return sortIssues(filteredIssues, sort.field, sort.direction);
+  }, [filteredIssues, sort]);
 
   const counts = useMemo(() => {
     const result: Record<Category, number> = {
@@ -136,6 +178,13 @@ function App() {
       });
     },
     [setSort],
+  );
+
+  const handleFilterChange = useCallback(
+    (key: keyof Filters, value: string) => {
+      setFilters((current) => ({ ...current, [key]: value }));
+    },
+    [setFilters],
   );
 
   if (tokens === null) {
@@ -179,6 +228,50 @@ function App() {
               activeCategory={activeCategory}
               onSelect={setActiveCategory}
             />
+
+            <div className="filter-bar">
+              <select
+                className="filter-select"
+                value={filters.priority}
+                onChange={(event) => handleFilterChange('priority', event.target.value)}
+                aria-label="Priority filter"
+              >
+                <option value="">All priorities</option>
+                {filterOptions.priorities.map((priority) => (
+                  <option key={priority} value={priority}>
+                    {priority}
+                  </option>
+                ))}
+              </select>
+
+              <select
+                className="filter-select"
+                value={filters.status}
+                onChange={(event) => handleFilterChange('status', event.target.value)}
+                aria-label="Status filter"
+              >
+                <option value="">All statuses</option>
+                {filterOptions.statuses.map((status) => (
+                  <option key={status} value={status}>
+                    {status}
+                  </option>
+                ))}
+              </select>
+
+              <select
+                className="filter-select"
+                value={filters.assignee}
+                onChange={(event) => handleFilterChange('assignee', event.target.value)}
+                aria-label="Assignee filter"
+              >
+                <option value="">All assignees</option>
+                {filterOptions.assignees.map((assignee) => (
+                  <option key={assignee} value={assignee}>
+                    {assignee}
+                  </option>
+                ))}
+              </select>
+            </div>
 
             <IssueTable issues={sortedIssues} sort={sort} onSort={handleSort} />
           </>
