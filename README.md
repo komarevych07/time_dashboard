@@ -51,6 +51,7 @@ Dashboard використовує **"Login with Jira"** — OAuth 2.0 (3LO) в�
 6. У **Permissions** додайте scopes:
    - `read:jira-work` (Classic scopes)
    - `read:jira-user` (Classic scopes)
+   - `read:project:jira` (Granular scopes)
    - `read:board-scope:jira-software` (Granular scopes)
    - `read:sprint:jira-software` (Granular scopes)
    - `read:issue:jira` (Granular scopes)
