@@ -522,8 +522,10 @@ async function fetchJira(context: JiraApiContext, url: string): Promise<Response
   });
 
   if (!response.ok) {
+    const body = await response.text();
     const error = new Error(`Jira API error: ${response.status} ${response.statusText}`);
-    (error as Error & { status?: number }).status = response.status;
+    (error as Error & { status?: number; body?: string }).status = response.status;
+    (error as Error & { status?: number; body?: string }).body = body;
     throw error;
   }
 
@@ -534,9 +536,16 @@ function handleJiraError(error: unknown, request: Request, env: Env): Response {
   if (error instanceof Error && 'status' in error) {
     const status = error.status as number;
 
+    const detail = (error as Error & { body?: string }).body ?? '';
+
     if (status === 401) {
       return jsonResponse(
-        { error: { code: 'JIRA_AUTH_FAILED', message: 'Access token недійсний або прострочений.' } },
+        {
+          error: {
+            code: 'JIRA_AUTH_FAILED',
+            message: `Access token недійсний або прострочений. ${detail}`.trim(),
+          },
+        },
         401,
         request,
         env,
@@ -545,7 +554,12 @@ function handleJiraError(error: unknown, request: Request, env: Env): Response {
 
     if (status === 403) {
       return jsonResponse(
-        { error: { code: 'JIRA_ACCESS_DENIED', message: 'Немає доступу до Jira board.' } },
+        {
+          error: {
+            code: 'JIRA_ACCESS_DENIED',
+            message: `Немає доступу до Jira board. ${detail}`.trim(),
+          },
+        },
         403,
         request,
         env,
@@ -554,7 +568,12 @@ function handleJiraError(error: unknown, request: Request, env: Env): Response {
 
     if (status === 404) {
       return jsonResponse(
-        { error: { code: 'JIRA_NOT_FOUND', message: 'Ресурс Jira не знайдено.' } },
+        {
+          error: {
+            code: 'JIRA_NOT_FOUND',
+            message: `Ресурс Jira не знайдено. ${detail}`.trim(),
+          },
+        },
         404,
         request,
         env,
@@ -562,7 +581,12 @@ function handleJiraError(error: unknown, request: Request, env: Env): Response {
     }
 
     return jsonResponse(
-      { error: { code: 'JIRA_API_ERROR', message: 'Jira API повернула помилку.' } },
+      {
+        error: {
+          code: 'JIRA_API_ERROR',
+          message: `Jira API повернула помилку. ${detail}`.trim(),
+        },
+      },
       502,
       request,
       env,
