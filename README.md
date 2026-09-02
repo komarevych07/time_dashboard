@@ -1,6 +1,6 @@
 # Jira Sprint Dashboard
 
-Внутрішній dashboard для відображення задач активного sprint з Jira board `COPILOT` (проєкт `COP`).
+Внутрішній dashboard для відображення задач активного sprint Jira-проєкту `COP`.
 
 ## Архітектура
 
@@ -51,11 +51,9 @@ Dashboard використовує **"Login with Jira"** — OAuth 2.0 (3LO) в�
 6. У **Permissions** додайте scopes:
    - `read:jira-work` (Classic scopes)
    - `read:jira-user` (Classic scopes)
-   - `read:project:jira` (Granular scopes)
-   - `read:board-scope:jira-software` (Granular scopes)
-   - `read:sprint:jira-software` (Granular scopes)
-   - `read:issue:jira` (Granular scopes)
    - `offline_access`
+
+   > **Примітка:** додаток використовує JQL-пошук через звичайний Jira Platform REST API, тому granular scopes не потрібні.
 
 ## Структура проєкту
 
@@ -201,6 +199,30 @@ git push -u origin main
    - `JIRA_CLIENT_SECRET`
 6. GitHub Actions автоматично задеплоїть frontend на GitHub Pages.
 
+## Sprint ID (опціонально)
+
+Якщо dashboard не може автоматично знайти активний sprint, на сторінці логіну можна ввести **Sprint ID**.
+
+### Як знайти Sprint ID
+
+1. Відкрийте board у Jira.
+2. Перейдіть на вкладку **Active sprints** і виберіть потрібний sprint.
+3. У URL браузера знайдіть параметр `sprint=ЧИСЛО`.
+
+Або:
+
+1. Відкрийте будь-яку задачу з sprint.
+2. У полі **Sprint** натисніть на назву sprint.
+3. У URL буде `sprint=ЧИСЛО`.
+
+Приклад:
+
+```text
+https://buntar.atlassian.net/jira/software/c/projects/COP/boards/1375?selectedIssue=COP-1&sprint=2721
+```
+
+Sprint ID = `2721`.
+
 ## npm scripts
 
 ### Frontend
@@ -231,8 +253,9 @@ npm run typecheck  # Перевірка TypeScript
 
 ## Функціонал
 
-- Автоматичний пошук board `COPILOT`.
-- Автоматичний пошук active sprint (sprint ID не захардкожено).
+- Відображення задач активного спринта через JQL-пошук.
+- Автоматичний пошук active sprint (якщо Sprint ID не вказано).
+- Можливість ручного введення Sprint ID на сторінці логіну.
 - Завантаження всіх issues sprint з pagination.
 - Отримання changelog з pagination.
 - Розрахунок `Time in status` на основі останнього transition у поточний status.
