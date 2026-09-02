@@ -32,11 +32,6 @@ interface JiraApiContext {
   jiraApiBase: string;
 }
 
-interface JiraBoard {
-  id: number;
-  name: string;
-}
-
 interface JiraSprint {
   id: number;
   name: string;
@@ -50,6 +45,7 @@ interface JiraIssueFields {
   status?: { name: string } | null;
   assignee?: { displayName: string } | null;
   issuetype?: { name: string } | null;
+  [key: string]: unknown;
 }
 
 interface JiraIssue {
@@ -256,25 +252,14 @@ async function handleDashboard(request: Request, env: Env): Promise<Response> {
     const jiraApiBase = `https://api.atlassian.com/ex/jira/${cloudId}`;
     const context: JiraApiContext = { accessToken, jiraApiBase };
 
-    const board = await findBoard(context, env.BOARD_NAME, env.PROJECT_KEY);
-
-    if (board === null) {
-      return jsonResponse(
-        { error: { code: 'BOARD_NOT_FOUND', message: `Board "${env.BOARD_NAME}" не знайдено.` } },
-        404,
-        request,
-        env,
-      );
-    }
-
-    const sprint = await findActiveSprint(context, board.id);
+    const { sprint, issues } = await fetchActiveSprintIssues(context, env.PROJECT_KEY);
 
     if (sprint === null) {
       return jsonResponse(
         {
           error: {
             code: 'ACTIVE_SPRINT_NOT_FOUND',
-            message: `Active sprint для board "${env.BOARD_NAME}" не знайдено.`,
+            message: `Active sprint для проєкту "${env.PROJECT_KEY}" не знайдено.`,
           },
         },
         404,
@@ -283,11 +268,10 @@ async function handleDashboard(request: Request, env: Env): Promise<Response> {
       );
     }
 
-    const issues = await fetchAllSprintIssues(context, sprint.id, env.PROJECT_KEY);
     const dashboardIssues = await buildDashboardIssues(context, issues, env.JIRA_BASE_URL);
 
     const response: DashboardResponse = {
-      board: { id: board.id, name: board.name },
+      board: { id: 0, name: env.BOARD_NAME },
       sprint: { id: sprint.id, name: sprint.name, state: sprint.state },
       issues: dashboardIssues,
       loadedAt: new Date().toISOString(),
@@ -349,48 +333,61 @@ async function parseJsonBody<T>(request: Request): Promise<T | null> {
   }
 }
 
-async function findBoard(context: JiraApiContext, boardName: string, projectKey: string): Promise<JiraBoard | null> {
-  const url = `${context.jiraApiBase}/rest/agile/1.0/board?projectKeyOrId=${encodeURIComponent(projectKey)}&name=${encodeURIComponent(boardName)}`;
+async function findSprintFieldId(context: JiraApiContext): Promise<string | null> {
+  const url = `${context.jiraApiBase}/rest/api/3/field`;
   const response = await fetchJira(context, url);
-  const data = (await response.json()) as { values?: Array<{ id: number; name: string }> };
+  const fields = (await response.json()) as Array<{
+    id: string;
+    name: string;
+    schema?: { custom?: string };
+  }>;
 
-  const values = data.values ?? [];
-
-  for (const board of values) {
-    if (board.name === boardName) {
-      return { id: board.id, name: board.name };
+  for (const field of fields) {
+    if (field.name === 'Sprint' && field.schema?.custom === 'com.pyxis.greenhopper.jira:sprint') {
+      return field.id;
     }
   }
 
   return null;
 }
 
-async function findActiveSprint(context: JiraApiContext, boardId: number): Promise<JiraSprint | null> {
-  const url = `${context.jiraApiBase}/rest/agile/1.0/board/${boardId}/sprint?state=active`;
-  const response = await fetchJira(context, url);
-  const data = (await response.json()) as { values?: Array<{ id: number; name: string; state: string }> };
-
-  const values = data.values ?? [];
-
-  if (values.length === 0) {
+function extractActiveSprint(issues: JiraIssue[], sprintFieldId: string | null): JiraSprint | null {
+  if (sprintFieldId === null) {
     return null;
   }
 
-  const sprint = values[0];
-  return { id: sprint.id, name: sprint.name, state: sprint.state };
+  for (const issue of issues) {
+    const sprints = issue.fields[sprintFieldId] as Array<{ id: number; name: string; state: string }> | undefined;
+
+    if (Array.isArray(sprints)) {
+      for (const sprint of sprints) {
+        if (sprint.state === 'ACTIVE') {
+          return { id: sprint.id, name: sprint.name, state: sprint.state };
+        }
+      }
+    }
+  }
+
+  return null;
 }
 
-async function fetchAllSprintIssues(
+async function fetchActiveSprintIssues(
   context: JiraApiContext,
-  sprintId: number,
   projectKey: string,
-): Promise<JiraIssue[]> {
+): Promise<{ sprint: JiraSprint | null; issues: JiraIssue[] }> {
+  const sprintFieldId = await findSprintFieldId(context);
   const issues: JiraIssue[] = [];
   let startAt = 0;
   const maxResults = DEFAULT_MAX_RESULTS;
+  const jql = `project = ${projectKey} AND sprint in openSprints() ORDER BY key ASC`;
+  const fields = sprintFieldId
+    ? `summary,created,priority,status,assignee,issuetype,${sprintFieldId}`
+    : 'summary,created,priority,status,assignee,issuetype';
 
   while (true) {
-    const url = `${context.jiraApiBase}/rest/agile/1.0/sprint/${sprintId}/issue?startAt=${startAt}&maxResults=${maxResults}&fields=summary,created,priority,status,assignee,issuetype`;
+    const url = `${context.jiraApiBase}/rest/api/3/search?jql=${encodeURIComponent(
+      jql,
+    )}&startAt=${startAt}&maxResults=${maxResults}&fields=${fields}`;
     const response = await fetchJira(context, url);
     const data = (await response.json()) as {
       issues: JiraIssue[];
@@ -399,10 +396,10 @@ async function fetchAllSprintIssues(
       startAt: number;
     };
 
-    const pageIssues = (data.issues ?? []).filter((issue) => issue.key.startsWith(`${projectKey}-`));
+    const pageIssues = data.issues ?? [];
     issues.push(...pageIssues);
 
-    const returnedCount = data.issues?.length ?? 0;
+    const returnedCount = pageIssues.length;
     const processedCount = startAt + returnedCount;
 
     if (returnedCount < maxResults || processedCount >= data.total) {
@@ -412,7 +409,9 @@ async function fetchAllSprintIssues(
     startAt = processedCount;
   }
 
-  return issues;
+  const sprint = extractActiveSprint(issues, sprintFieldId);
+
+  return { sprint, issues };
 }
 
 async function buildDashboardIssues(
