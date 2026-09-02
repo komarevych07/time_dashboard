@@ -3,7 +3,7 @@ import type { DashboardData, DashboardError, OAuthTokens } from '../types/jira';
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '';
 const JIRA_CLIENT_ID = import.meta.env.VITE_JIRA_CLIENT_ID ?? '';
 const JIRA_REDIRECT_URI = import.meta.env.VITE_JIRA_REDIRECT_URI ?? '';
-const JIRA_SCOPE = 'read:jira-work read:jira-user offline_access';
+const JIRA_SCOPE = 'read:jira-work read:jira-user read:board-scope:jira-software read:sprint:jira-software read:issue:jira offline_access';
 
 export function buildAuthorizeUrl(state: string): string {
   const params = new URLSearchParams({

@@ -49,8 +49,11 @@ Dashboard використовує **"Login with Jira"** — OAuth 2.0 (3LO) в�
    - Production (GitHub Pages): `https://komarevych07.github.io/time_dashboard/`
 5. Збережіть **Client ID** та **Client Secret**.
 6. У **Permissions** додайте scopes:
-   - `read:jira-work`
-   - `read:jira-user`
+   - `read:jira-work` (Classic scopes)
+   - `read:jira-user` (Classic scopes)
+   - `read:board-scope:jira-software` (Granular scopes)
+   - `read:sprint:jira-software` (Granular scopes)
+   - `read:issue:jira` (Granular scopes)
    - `offline_access`
 
 ## Структура проєкту
