@@ -1,0 +1,14 @@
+name = "jira-sprint-dashboard-api"
+main = "src/index.ts"
+compatibility_date = "2025-07-18"
+
+[vars]
+JIRA_BASE_URL = "https://company.atlassian.net"
+BOARD_NAME = "COPILOT"
+PROJECT_KEY = "COP"
+ALLOWED_ORIGINS = "http://localhost:5173,https://USERNAME.github.io"
+JIRA_CLIENT_ID = "your-atlassian-oauth-client-id"
+REDIRECT_URI = "http://localhost:5173"
+
+# JIRA_CLIENT_SECRET — Cloudflare secret, not a var. Set via:
+#   cd worker && npx wrangler secret put JIRA_CLIENT_SECRET
