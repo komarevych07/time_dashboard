@@ -1,11 +1,33 @@
-/tmp
-/out-tsc
+# Dependencies
+node_modules
+worker/node_modules
 
-/node_modules
+# Build output
+dist
+dist-ssr
+worker/dist
+
+# Environment variables
+.env
+.env.local
+.env.production
+worker/.dev.vars
+
+# Logs
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-/.pnp
-.pnp.js
+pnpm-debug.log*
 
+# Editor directories and files
 .vscode/*
+.idea
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+
+# Cloudflare Workers
+.wrangler
+worker/.wrangler

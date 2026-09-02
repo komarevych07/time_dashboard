@@ -46,7 +46,7 @@ Dashboard використовує **"Login with Jira"** — OAuth 2.0 (3LO) в�
 3. Увімкніть **Authorization code grants**.
 4. Додайте **Callback URL**:
    - Локально: `http://localhost:5173`
-   - Production (GitHub Pages): `https://USERNAME.github.io/REPOSITORY/`
+   - Production (GitHub Pages): `https://komarevych07.github.io/time_dashboard/`
 5. Збережіть **Client ID** та **Client Secret**.
 6. У **Permissions** додайте scopes:
    - `read:jira-work`
@@ -128,7 +128,7 @@ JIRA_CLIENT_SECRET=your-atlassian-oauth-client-secret
 JIRA_BASE_URL = "https://your-company.atlassian.net"
 BOARD_NAME = "COPILOT"
 PROJECT_KEY = "COP"
-ALLOWED_ORIGINS = "http://localhost:5173,https://USERNAME.github.io"
+ALLOWED_ORIGINS = "http://localhost:5173,https://komarevych07.github.io/time_dashboard"
 JIRA_CLIENT_ID = "your-atlassian-oauth-client-id"
 REDIRECT_URI = "http://localhost:5173"
 ```
@@ -183,7 +183,7 @@ git init
 git add .
 git commit -m "Initial Jira Sprint Dashboard"
 git branch -M main
-git remote add origin https://github.com/USERNAME/REPOSITORY.git
+git remote add origin https://github.com/komarevych07/time_dashboard.git
 git push -u origin main
 ```
 
@@ -192,7 +192,7 @@ git push -u origin main
 4. Додайте Repository Variables (**Settings → Secrets and variables → Actions → Variables**):
    - `VITE_API_BASE_URL` → `https://your-worker.workers.dev`
    - `VITE_JIRA_CLIENT_ID` → ваш Atlassian Client ID
-   - `VITE_JIRA_REDIRECT_URI` → `https://USERNAME.github.io/REPOSITORY/`
+   - `VITE_JIRA_REDIRECT_URI` → `https://komarevych07.github.io/time_dashboard/`
 5. Додайте Worker Secret у Cloudflare dashboard:
    - `JIRA_CLIENT_SECRET`
 6. GitHub Actions автоматично задеплоїть frontend на GitHub Pages.
