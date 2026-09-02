@@ -26,11 +26,20 @@ const CATEGORY_LABELS: Record<Category, string> = {
 
 const DEFAULT_SORT: SortState = { field: 'statusSince', direction: 'desc' };
 const OAUTH_STATE_STORAGE_KEY = 'jira_oauth_state';
+const SPRINT_ID_STORAGE_KEY = 'jira_manual_sprint_id';
 
 function App() {
   const [tokens, setTokens] = useState<OAuthTokens | null>(null);
   const [activeCategory, setActiveCategory] = useState<Category>('FE');
   const [sort, setSort] = useState<SortState>(DEFAULT_SORT);
+  const [manualSprintId, setManualSprintId] = useState<string>(() => {
+    return window.sessionStorage.getItem(SPRINT_ID_STORAGE_KEY) ?? '';
+  });
+
+  const handleSprintIdChange = useCallback((value: string) => {
+    setManualSprintId(value);
+    window.sessionStorage.setItem(SPRINT_ID_STORAGE_KEY, value);
+  }, []);
 
   const {
     data,
@@ -40,7 +49,7 @@ function App() {
     refresh,
     autoRefreshEnabled,
     setAutoRefreshEnabled,
-  } = useDashboard({ tokens, onTokensChange: setTokens });
+  } = useDashboard({ tokens, onTokensChange: setTokens, sprintId: manualSprintId || undefined });
 
   useEffect(() => {
     const url = new URL(window.location.href);
@@ -134,6 +143,8 @@ function App() {
       <LoginForm
         loading={loading}
         error={error}
+        sprintId={manualSprintId}
+        onSprintIdChange={handleSprintIdChange}
       />
     );
   }

@@ -59,14 +59,14 @@ export async function refreshAccessToken(refreshToken: string): Promise<OAuthTok
   return parseTokenResponse(data);
 }
 
-export async function fetchDashboard(accessToken: string): Promise<DashboardData> {
+export async function fetchDashboard(accessToken: string, sprintId?: string): Promise<DashboardData> {
   const response = await fetch(`${API_BASE_URL}/api/dashboard`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${accessToken}`,
     },
-    body: JSON.stringify({}),
+    body: JSON.stringify(sprintId !== undefined && sprintId !== '' ? { sprintId } : {}),
   });
 
   const data: unknown = await response.json();

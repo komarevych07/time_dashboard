@@ -238,6 +238,7 @@ async function handleDashboard(request: Request, env: Env): Promise<Response> {
   }
 
   try {
+    const body = (await parseJsonBody<{ sprintId?: string }>(request)) ?? {};
     const cloudId = await resolveCloudId(accessToken, env.JIRA_BASE_URL);
 
     if (cloudId === null) {
@@ -252,7 +253,7 @@ async function handleDashboard(request: Request, env: Env): Promise<Response> {
     const jiraApiBase = `https://api.atlassian.com/ex/jira/${cloudId}`;
     const context: JiraApiContext = { accessToken, jiraApiBase };
 
-    const { sprint, issues } = await fetchActiveSprintIssues(context, env.PROJECT_KEY);
+    const { sprint, issues } = await fetchActiveSprintIssues(context, env.PROJECT_KEY, body.sprintId);
 
     if (sprint === null) {
       return jsonResponse(
@@ -344,7 +345,9 @@ function isSprintValue(value: unknown): value is { id: number; name: string; sta
   );
 }
 
-function extractActiveSprint(issues: JiraIssue[]): JiraSprint | null {
+function extractActiveSprint(issues: JiraIssue[], sprintId?: string): JiraSprint | null {
+  let fallback: JiraSprint | null = null;
+
   for (const issue of issues) {
     for (const fieldValue of Object.values(issue.fields)) {
       if (!Array.isArray(fieldValue)) {
@@ -352,23 +355,37 @@ function extractActiveSprint(issues: JiraIssue[]): JiraSprint | null {
       }
 
       for (const item of fieldValue) {
-        if (isSprintValue(item) && item.state === 'ACTIVE') {
+        if (!isSprintValue(item)) {
+          continue;
+        }
+
+        if (sprintId !== undefined && String(item.id) === sprintId) {
           return { id: item.id, name: item.name, state: item.state };
+        }
+
+        if (item.state.toUpperCase() === 'ACTIVE') {
+          return { id: item.id, name: item.name, state: item.state };
+        }
+
+        if (fallback === null) {
+          fallback = { id: item.id, name: item.name, state: item.state };
         }
       }
     }
   }
 
-  return null;
+  return fallback;
 }
 
 async function fetchActiveSprintIssues(
   context: JiraApiContext,
   projectKey: string,
+  sprintId?: string,
 ): Promise<{ sprint: JiraSprint | null; issues: JiraIssue[] }> {
   const issues: JiraIssue[] = [];
   let nextPageToken: string | null = null;
-  const jql = `project = ${projectKey} AND sprint in openSprints() ORDER BY key ASC`;
+  const sprintFilter = sprintId !== undefined && sprintId !== '' ? `sprint = ${sprintId}` : 'sprint in openSprints()';
+  const jql = `project = ${projectKey} AND ${sprintFilter} ORDER BY key ASC`;
   const url = `${context.jiraApiBase}/rest/api/3/search/jql`;
 
   while (true) {
@@ -407,7 +424,7 @@ async function fetchActiveSprintIssues(
     }
   }
 
-  const sprint = extractActiveSprint(issues);
+  const sprint = extractActiveSprint(issues, sprintId);
 
   return { sprint, issues };
 }

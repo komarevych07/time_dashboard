@@ -4,6 +4,8 @@ import { buildAuthorizeUrl } from '../services/api';
 interface LoginFormProps {
   loading: boolean;
   error: string | null;
+  sprintId: string;
+  onSprintIdChange: (value: string) => void;
 }
 
 function generateState(): string {
@@ -14,7 +16,7 @@ function generateState(): string {
     .join('');
 }
 
-export const LoginForm: FC<LoginFormProps> = ({ loading, error }) => {
+export const LoginForm: FC<LoginFormProps> = ({ loading, error, sprintId, onSprintIdChange }) => {
   const handleLogin = () => {
     const state = generateState();
     window.sessionStorage.setItem('jira_oauth_state', state);
@@ -26,6 +28,19 @@ export const LoginForm: FC<LoginFormProps> = ({ loading, error }) => {
       <div className="login-card">
         <h1 className="login-title">JIRA SPRINT DASHBOARD</h1>
         <p className="login-subtitle">Увійдіть через Jira Cloud</p>
+
+        <label className="login-label" htmlFor="sprint-id">
+          Sprint ID (необов’язково)
+        </label>
+        <input
+          id="sprint-id"
+          type="text"
+          className="login-input"
+          placeholder="наприклад, 123"
+          value={sprintId}
+          onChange={(event) => onSprintIdChange(event.target.value)}
+          disabled={loading}
+        />
 
         <button
           type="button"
@@ -39,7 +54,7 @@ export const LoginForm: FC<LoginFormProps> = ({ loading, error }) => {
         {error !== null && <div className="login-error">{error}</div>}
 
         <p className="login-note">
-          Після входу ви повернетесь на цю сторінку. Авторизаційні токени зберігаються лише в пам’яті вкладки.
+          Якщо не вказати Sprint ID, dashboard спробує знайти активний спринт автоматично.
         </p>
       </div>
     </div>
