@@ -1,7 +1,7 @@
 import React from 'react';
 import type { DashboardData } from '../types/jira';
 
-type DashboardView = 'dashboard' | 'storyStats';
+type DashboardView = 'dashboard' | 'storyStats' | 'bugAging';
 
 interface HeaderProps {
   data: DashboardData | null;
@@ -60,6 +60,15 @@ export const Header: React.FC<HeaderProps> = ({
             onClick={() => onViewChange('storyStats')}
           >
             StoryTimeStats
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeView === 'bugAging'}
+            className={`view-switcher-button ${activeView === 'bugAging' ? 'view-switcher-button-active' : ''}`}
+            onClick={() => onViewChange('bugAging')}
+          >
+            BugAgingReport
           </button>
         </div>
 

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { BugAgingReport } from './components/BugAgingReport';
 import { Header } from './components/Header';
 import { IssueTable } from './components/IssueTable';
 import { LoginForm } from './components/LoginForm';
@@ -38,7 +39,7 @@ interface Filters {
   assignee: string[];
 }
 
-type DashboardView = 'dashboard' | 'storyStats';
+type DashboardView = 'dashboard' | 'storyStats' | 'bugAging';
 
 function App() {
   const [tokens, setTokens] = useState<OAuthTokens | null>(null);
@@ -216,6 +217,8 @@ function App() {
           <div className="loading-overlay">Підключення до Jira...</div>
         ) : data === null ? null : activeView === 'storyStats' ? (
           <StoryTimeStats issues={data.issues} />
+        ) : activeView === 'bugAging' ? (
+          <BugAgingReport issues={data.bugReportIssues} />
         ) : (
           <>
             <div className="filter-bar">

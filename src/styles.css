@@ -941,6 +941,116 @@ body {
   white-space: nowrap;
 }
 
+.bug-aging-report {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.bug-aging-summary {
+  padding: 12px 16px;
+  color: var(--color-text-muted);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+}
+
+.bug-aging-summary strong {
+  color: var(--color-text);
+}
+
+.bug-aging-table-wrapper {
+  max-width: 100%;
+  overflow: auto;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+}
+
+.bug-aging-table {
+  width: max-content;
+  min-width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.bug-aging-table th,
+.bug-aging-table td {
+  min-width: 60px;
+  padding: 10px 8px;
+  text-align: center;
+  border-right: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.bug-aging-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  color: var(--color-text-muted);
+  background: #f8fafc;
+}
+
+.bug-aging-table tr:last-child th,
+.bug-aging-table tr:last-child td {
+  border-bottom: 0;
+}
+
+.bug-aging-priority-cell {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  min-width: 110px !important;
+  text-align: left !important;
+  color: var(--color-text);
+  background: var(--color-surface);
+}
+
+.bug-aging-table thead .bug-aging-priority-cell {
+  z-index: 3;
+  background: #f8fafc;
+}
+
+.bug-aging-total-cell {
+  position: sticky;
+  right: 0;
+  z-index: 1;
+  font-weight: 700;
+  background: #fff7ed;
+  border-right: 0 !important;
+}
+
+.bug-aging-table thead .bug-aging-total-cell {
+  z-index: 3;
+}
+
+.bug-aging-count-active {
+  font-weight: 600;
+  color: #9a3412;
+  background: #ffedd5;
+}
+
+.bug-aging-totals-row th,
+.bug-aging-totals-row td {
+  font-weight: 700;
+  color: var(--color-text);
+  background: #f1f5f9;
+}
+
+.bug-aging-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 180px;
+  color: var(--color-text-muted);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+}
+
 /* Responsive */
 
 @media (max-width: 768px) {

@@ -122,10 +122,19 @@ interface DashboardIssue {
   linkedIssues: LinkedIssue[];
 }
 
+interface BugReportIssue {
+  id: string;
+  key: string;
+  priority: string;
+  reportedAt: string;
+  lastInProgressExitAt: string | null;
+}
+
 interface DashboardResponse {
   board: { id: number; name: string };
   sprint: { id: number; name: string; state: string };
   issues: DashboardIssue[];
+  bugReportIssues: BugReportIssue[];
   loadedAt: string;
 }
 
@@ -311,12 +320,16 @@ async function handleDashboard(request: Request, env: Env): Promise<Response> {
       );
     }
 
-    const dashboardIssues = await buildDashboardIssues(issues, env.JIRA_BASE_URL);
+    const [dashboardIssues, bugReportIssues] = await Promise.all([
+      buildDashboardIssues(issues, env.JIRA_BASE_URL),
+      fetchBugReportIssues(context),
+    ]);
 
     const response: DashboardResponse = {
       board: { id: 0, name: env.BOARD_NAME },
       sprint: { id: sprint.id, name: sprint.name, state: sprint.state },
       issues: dashboardIssues,
+      bugReportIssues,
       loadedAt: new Date().toISOString(),
     };
 
@@ -946,4 +959,72 @@ function applyCorsHeaders(response: Response, request: Request, env: Env): Respo
   response.headers.set('Access-Control-Max-Age', '86400');
 
   return response;
+}
+
+async function fetchBugReportIssues(context: JiraApiContext): Promise<BugReportIssue[]> {
+  const issues: JiraIssue[] = [];
+  let nextPageToken: string | null = null;
+  const url = `${context.jiraApiBase}/rest/api/3/search/jql`;
+
+  while (true) {
+    const body: Record<string, unknown> = {
+      jql: 'issuetype = Bug ORDER BY created ASC',
+      maxResults: DEFAULT_MAX_RESULTS,
+      fields: ['created', 'priority'],
+      expand: 'changelog',
+    };
+
+    if (nextPageToken !== null) {
+      body.nextPageToken = nextPageToken;
+    }
+
+    const response = await fetchJira(context, url, { method: 'POST', body });
+    const data = (await response.json()) as {
+      issues: JiraIssue[];
+      isLast?: boolean;
+      nextPageToken?: string;
+    };
+
+    issues.push(...(data.issues ?? []));
+
+    if (data.isLast ?? data.nextPageToken === undefined) {
+      break;
+    }
+
+    nextPageToken = data.nextPageToken ?? null;
+
+    if (nextPageToken === null) {
+      break;
+    }
+  }
+
+  return issues.map((issue) => ({
+    id: issue.id,
+    key: issue.key,
+    priority: issue.fields.priority?.name ?? 'None',
+    reportedAt: issue.fields.created,
+    lastInProgressExitAt: findLastInProgressExit(issue),
+  }));
+}
+
+function findLastInProgressExit(issue: JiraIssue): string | null {
+  let latestExit: JiraChangelogEntry | null = null;
+
+  for (const entry of issue.changelog?.histories ?? []) {
+    const movedFromInProgress = entry.items.some(
+      (item) =>
+        item.field === 'status' &&
+        item.fromString?.trim().toLowerCase() === 'in progress' &&
+        item.toString.trim().toLowerCase() !== 'in progress',
+    );
+
+    if (
+      movedFromInProgress &&
+      (latestExit === null || new Date(entry.created).getTime() > new Date(latestExit.created).getTime())
+    ) {
+      latestExit = entry;
+    }
+  }
+
+  return latestExit?.created ?? null;
 }

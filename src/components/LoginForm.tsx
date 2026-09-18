@@ -26,7 +26,7 @@ export const LoginForm: FC<LoginFormProps> = ({ loading, error, sprintId, onSpri
   return (
     <div className="login-container">
       <div className="login-card">
-        <h1 className="login-title">JIRA SPRINT DASHBOARD</h1>
+        <h1 className="login-title">Aging Jira Tickets Reports</h1>
         <p className="login-subtitle">Увійдіть через Jira Cloud</p>
 
         <label className="login-label" htmlFor="sprint-id">

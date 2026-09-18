@@ -48,10 +48,19 @@ export interface SprintInfo {
   state: string;
 }
 
+export interface BugReportIssue {
+  id: string;
+  key: string;
+  priority: string;
+  reportedAt: string;
+  lastInProgressExitAt: string | null;
+}
+
 export interface DashboardData {
   board: BoardInfo;
   sprint: SprintInfo;
   issues: DashboardIssue[];
+  bugReportIssues: BugReportIssue[];
   loadedAt: string;
 }
 
