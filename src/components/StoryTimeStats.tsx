@@ -23,9 +23,10 @@ type SortDirection = 'asc' | 'desc';
 
 interface StoryTimeStatsProps {
   issues: DashboardIssue[];
+  issueType?: string;
 }
 
-export function StoryTimeStats({ issues }: StoryTimeStatsProps) {
+export function StoryTimeStats({ issues, issueType = 'story' }: StoryTimeStatsProps) {
   const [sort, setSort] = useState<{ field: SortField; direction: SortDirection }>({
     field: 'leadTime',
     direction: 'desc',
@@ -40,18 +41,18 @@ export function StoryTimeStats({ issues }: StoryTimeStatsProps) {
   };
 
   const filterOptions = useMemo(() => {
-    const stories = issues.filter((issue) => issue.issueType.toLowerCase() === 'story');
-    const statuses = Array.from(new Set(stories.map((issue) => issue.status))).sort();
+    const matchingIssues = issues.filter((issue) => issue.issueType.toLowerCase() === issueType.toLowerCase());
+    const statuses = Array.from(new Set(matchingIssues.map((issue) => issue.status))).sort();
     const assignees = Array.from(
-      new Set(stories.map((issue) => issue.assignee ?? 'Unassigned')),
+      new Set(matchingIssues.map((issue) => issue.assignee ?? 'Unassigned')),
     ).sort();
 
     return { statuses, assignees };
-  }, [issues]);
+  }, [issues, issueType]);
 
   const stories = useMemo(() => {
     const filtered = issues.filter((issue) => {
-      if (issue.issueType.toLowerCase() !== 'story') {
+      if (issue.issueType.toLowerCase() !== issueType.toLowerCase()) {
         return false;
       }
 
@@ -77,7 +78,7 @@ export function StoryTimeStats({ issues }: StoryTimeStatsProps) {
         ? a.leadTimeSeconds - b.leadTimeSeconds
         : b.leadTimeSeconds - a.leadTimeSeconds;
     });
-  }, [issues, sort, statusFilter, assigneeFilter]);
+  }, [issues, issueType, sort, statusFilter, assigneeFilter]);
 
   const toggleSort = (field: SortField) => {
     setSort((current) => ({
@@ -101,7 +102,7 @@ export function StoryTimeStats({ issues }: StoryTimeStatsProps) {
   };
 
   if (stories.length === 0) {
-    return <div className="story-stats-empty">У цьому спринті немає задач типу Story.</div>;
+    return <div className="story-stats-empty">У цьому спринті немає задач типу {issueType}.</div>;
   }
 
   return (

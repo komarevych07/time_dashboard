@@ -218,7 +218,7 @@ function App() {
         ) : data === null ? null : activeView === 'storyStats' ? (
           <StoryTimeStats issues={data.issues} />
         ) : activeView === 'bugAging' ? (
-          <BugAgingReport issues={data.bugReportIssues} />
+          <BugAgingReport issues={data.bugReportIssues} sprintIssues={data.issues} />
         ) : (
           <>
             <div className="filter-bar">
