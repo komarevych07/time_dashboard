@@ -4,6 +4,7 @@ import { Header } from './components/Header';
 import { IssueTable } from './components/IssueTable';
 import { LoginForm } from './components/LoginForm';
 import { MultiSelect } from './components/MultiSelect';
+import { AppliedFilters } from './components/AppliedFilters';
 import { StoryTimeStats } from './components/StoryTimeStats';
 import { useDashboard } from './hooks/useDashboard';
 import { exchangeCode } from './services/api';
@@ -265,6 +266,47 @@ function App() {
                 Clear all filters
               </button>
             </div>
+
+            <AppliedFilters
+              groups={[
+                {
+                  label: 'Типи тікетів',
+                  values: filters.ticketType.length === TICKET_TYPE_OPTIONS.length ? [] : filters.ticketType,
+                  onRemove: (value) =>
+                    setFilters((current) => ({
+                      ...current,
+                      ticketType: current.ticketType.filter((item) => item !== value),
+                    })),
+                },
+                {
+                  label: 'Пріоритети',
+                  values: filters.priority,
+                  onRemove: (value) =>
+                    setFilters((current) => ({
+                      ...current,
+                      priority: current.priority.filter((item) => item !== value),
+                    })),
+                },
+                {
+                  label: 'Статуси',
+                  values: filters.status,
+                  onRemove: (value) =>
+                    setFilters((current) => ({
+                      ...current,
+                      status: current.status.filter((item) => item !== value),
+                    })),
+                },
+                {
+                  label: 'Асайні',
+                  values: filters.assignee,
+                  onRemove: (value) =>
+                    setFilters((current) => ({
+                      ...current,
+                      assignee: current.assignee.filter((item) => item !== value),
+                    })),
+                },
+              ]}
+            />
 
             <IssueTable issues={sortedIssues} sort={sort} onSort={handleSort} />
           </>

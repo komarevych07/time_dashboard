@@ -180,6 +180,76 @@ body {
   cursor: default;
 }
 
+.applied-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin: -4px 0 16px;
+  padding: 10px 12px;
+  background: #f8fafc;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+}
+
+.applied-filter-group,
+.applied-filter-values,
+.applied-filter-chip {
+  display: inline-flex;
+  align-items: center;
+}
+
+.applied-filter-group {
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.applied-filter-values {
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.applied-filter-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.applied-filter-chip {
+  gap: 5px;
+  padding: 4px 5px 4px 9px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #1e3a8a;
+  background: #dbeafe;
+  border: 1px solid #bfdbfe;
+  border-radius: 999px;
+}
+
+.applied-filter-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  font-size: 16px;
+  line-height: 1;
+  color: #1d4ed8;
+  background: transparent;
+  border: 0;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.applied-filter-remove:hover {
+  color: #ffffff;
+  background: #2563eb;
+}
+
+.story-stats > .applied-filters {
+  margin: -8px 0 0;
+}
+
 /* MultiSelect */
 
 .multi-select {

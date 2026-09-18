@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { formatDuration } from '../utils/duration';
 import { formatDateTime } from '../utils/formatDateTime';
+import { AppliedFilters } from './AppliedFilters';
 import { MultiSelect } from './MultiSelect';
 import type { DashboardIssue, LinkedIssue, StatusDuration } from '../types/jira';
 
@@ -131,6 +132,21 @@ export function StoryTimeStats({ issues, issueType = 'story' }: StoryTimeStatsPr
           Clear all filters
         </button>
       </div>
+
+      <AppliedFilters
+        groups={[
+          {
+            label: 'Статуси',
+            values: statusFilter,
+            onRemove: (value) => setStatusFilter((current) => current.filter((item) => item !== value)),
+          },
+          {
+            label: 'Асайні',
+            values: assigneeFilter,
+            onRemove: (value) => setAssigneeFilter((current) => current.filter((item) => item !== value)),
+          },
+        ]}
+      />
 
       <div className="story-stats-header">
         <span className="story-stats-header-cell">Номер</span>
