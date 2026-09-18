@@ -322,7 +322,7 @@ async function handleDashboard(request: Request, env: Env): Promise<Response> {
 
     const [dashboardIssues, bugReportIssues] = await Promise.all([
       buildDashboardIssues(issues, env.JIRA_BASE_URL),
-      fetchBugReportIssues(context),
+      fetchBugReportIssues(context, env.PROJECT_KEY).catch(() => []),
     ]);
 
     const response: DashboardResponse = {
@@ -700,12 +700,14 @@ function computeLeadTimeSeconds(issue: JiraIssue): number {
 }
 
 function findLatestDoneTransition(issue: JiraIssue): Date | null {
-  const entries = issue.changelog?.histories ?? [];
-  let latestDone: Date | null = null;
+  let latestExit: Date | null = null;
 
-  for (const entry of entries) {
+  for (const entry of issue.changelog?.histories ?? []) {
     const movedToDone = entry.items.some(
-      (item) => item.field === 'status' && item.toString.toLowerCase() === 'done',
+      (item) =>
+        item.field === 'status' &&
+        item.fromString?.trim().toLowerCase() === 'in progress' &&
+        item.toString.trim().toLowerCase() !== 'in progress',
     );
 
     if (!movedToDone) {
@@ -714,12 +716,12 @@ function findLatestDoneTransition(issue: JiraIssue): Date | null {
 
     const entryDate = new Date(entry.created);
 
-    if (latestDone === null || entryDate.getTime() > latestDone.getTime()) {
-      latestDone = entryDate;
+    if (latestExit === null || entryDate.getTime() > latestExit.getTime()) {
+      latestExit = entryDate;
     }
   }
 
-  return latestDone;
+  return latestExit;
 }
 
 function computeStatusDurations(issue: JiraIssue): StatusDuration[] {
@@ -782,31 +784,33 @@ function computeStatusDurations(issue: JiraIssue): StatusDuration[] {
 }
 
 function categorizeIssue(summary: string, issueType: string): DashboardIssue['category'] {
-  if (/\[FE\]/i.test(summary)) {
+  const normalizedSummary = summary.toUpperCase();
+
+  if (normalizedSummary.includes('[FE]')) {
     return 'FE';
   }
 
-  if (/\[BE\]/i.test(summary)) {
+  if (normalizedSummary.includes('[BE]')) {
     return 'BE';
   }
 
-  if (/\[QA\]/i.test(summary)) {
+  if (normalizedSummary.includes('[QA]')) {
     return 'QA';
   }
 
-  if (/\[AQA\]/i.test(summary)) {
+  if (normalizedSummary.includes('[AQA]')) {
     return 'AQA';
   }
 
-  if (/\[Flight\]/i.test(summary)) {
+  if (normalizedSummary.includes('[FLIGHT]')) {
     return 'FLIGHT';
   }
 
-  if (/\[BA\]/i.test(summary)) {
+  if (normalizedSummary.includes('[BA]')) {
     return 'BA';
   }
 
-  if (/\[UX\]/i.test(summary)) {
+  if (normalizedSummary.includes('[UX]')) {
     return 'UX';
   }
 
@@ -961,14 +965,17 @@ function applyCorsHeaders(response: Response, request: Request, env: Env): Respo
   return response;
 }
 
-async function fetchBugReportIssues(context: JiraApiContext): Promise<BugReportIssue[]> {
+async function fetchBugReportIssues(
+  context: JiraApiContext,
+  projectKey: string,
+): Promise<BugReportIssue[]> {
   const issues: JiraIssue[] = [];
   let nextPageToken: string | null = null;
   const url = `${context.jiraApiBase}/rest/api/3/search/jql`;
 
   while (true) {
     const body: Record<string, unknown> = {
-      jql: 'issuetype = Bug ORDER BY created ASC',
+      jql: `project = "${projectKey.replace(/"/g, '\\"')}" AND issuetype = Bug ORDER BY created ASC`,
       maxResults: DEFAULT_MAX_RESULTS,
       fields: ['created', 'priority'],
       expand: 'changelog',
@@ -1003,12 +1010,12 @@ async function fetchBugReportIssues(context: JiraApiContext): Promise<BugReportI
     key: issue.key,
     priority: issue.fields.priority?.name ?? 'None',
     reportedAt: issue.fields.created,
-    lastInProgressExitAt: findLastInProgressExit(issue),
+    lastInProgressExitAt: findLastInProgressExit(issue)?.toISOString() ?? null,
   }));
 }
 
-function findLastInProgressExit(issue: JiraIssue): string | null {
-  let latestExit: JiraChangelogEntry | null = null;
+function findLastInProgressExit(issue: JiraIssue): Date | null {
+  let latestExit: Date | null = null;
 
   for (const entry of issue.changelog?.histories ?? []) {
     const movedFromInProgress = entry.items.some(
@@ -1018,13 +1025,16 @@ function findLastInProgressExit(issue: JiraIssue): string | null {
         item.toString.trim().toLowerCase() !== 'in progress',
     );
 
-    if (
-      movedFromInProgress &&
-      (latestExit === null || new Date(entry.created).getTime() > new Date(latestExit.created).getTime())
-    ) {
-      latestExit = entry;
+    if (!movedFromInProgress) {
+      continue;
+    }
+
+    const entryDate = new Date(entry.created);
+
+    if (latestExit === null || entryDate.getTime() > latestExit.getTime()) {
+      latestExit = entryDate;
     }
   }
 
-  return latestExit?.created ?? null;
+  return latestExit;
 }
