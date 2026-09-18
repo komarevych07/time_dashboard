@@ -704,10 +704,7 @@ function findLatestDoneTransition(issue: JiraIssue): Date | null {
 
   for (const entry of issue.changelog?.histories ?? []) {
     const movedToDone = entry.items.some(
-      (item) =>
-        item.field === 'status' &&
-        item.fromString?.trim().toLowerCase() === 'in progress' &&
-        item.toString.trim().toLowerCase() !== 'in progress',
+      (item) => item.field === 'status' && item.toString.trim().toLowerCase() === 'done',
     );
 
     if (!movedToDone) {
