@@ -40,7 +40,7 @@ export const Header: React.FC<HeaderProps> = ({
   return (
     <header className="dashboard-header">
       <div className="header-main">
-        <h1 className="header-title">JIRA SPRINT DASHBOARD</h1>
+        <h1 className="header-title">Aging Jira Tickets Reports</h1>
 
         <div className="view-switcher" role="tablist" aria-label="Dashboard view">
           <button

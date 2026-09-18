@@ -4,10 +4,11 @@ interface MultiSelectProps {
   label: string;
   options: string[];
   selected: string[];
+  allSelectedLabel?: string;
   onChange: (selected: string[]) => void;
 }
 
-export function MultiSelect({ label, options, selected, onChange }: MultiSelectProps) {
+export function MultiSelect({ label, options, selected, allSelectedLabel, onChange }: MultiSelectProps) {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -39,9 +40,11 @@ export function MultiSelect({ label, options, selected, onChange }: MultiSelectP
   const clear = () => onChange([]);
 
   const triggerLabel =
-    selected.length === 0
-      ? label
-      : `${label}: ${selected.length}`;
+    options.length > 0 && selected.length === options.length && allSelectedLabel !== undefined
+      ? `${label}: ${allSelectedLabel}`
+      : selected.length === 0
+        ? label
+        : `${label}: ${selected.length}`;
 
   return (
     <div className="multi-select" ref={containerRef}>

@@ -4,24 +4,10 @@ import { IssueTable } from './components/IssueTable';
 import { LoginForm } from './components/LoginForm';
 import { MultiSelect } from './components/MultiSelect';
 import { StoryTimeStats } from './components/StoryTimeStats';
-import { Tabs } from './components/Tabs';
 import { useDashboard } from './hooks/useDashboard';
 import { exchangeCode } from './services/api';
 import { sortIssues } from './utils/sorting';
-import type { Category, OAuthTokens, SortField, SortState, TabConfig } from './types/jira';
-
-const TABS: TabConfig[] = [
-  { key: 'FE', label: 'FE' },
-  { key: 'BE', label: 'BE' },
-  { key: 'QA', label: 'QA' },
-  { key: 'AQA', label: 'AQA' },
-  { key: 'FLIGHT', label: 'Flight' },
-  { key: 'BA', label: 'BA' },
-  { key: 'UX', label: 'UX' },
-  { key: 'EPIC', label: 'Epic' },
-  { key: 'BUGS', label: 'Bugs' },
-  { key: 'ALL', label: 'Всі' },
-];
+import type { Category, OAuthTokens, SortField, SortState } from './types/jira';
 
 const CATEGORY_LABELS: Record<Category, string> = {
   FE: 'FE',
@@ -37,11 +23,16 @@ const CATEGORY_LABELS: Record<Category, string> = {
   ALL: 'Всі',
 };
 
+const TICKET_TYPE_OPTIONS = Object.entries(CATEGORY_LABELS)
+  .filter(([category]) => category !== 'ALL')
+  .map(([, label]) => label);
+
 const DEFAULT_SORT: SortState = { field: 'statusSince', direction: 'desc' };
 const OAUTH_STATE_STORAGE_KEY = 'jira_oauth_state';
 const SPRINT_ID_STORAGE_KEY = 'jira_manual_sprint_id';
 
 interface Filters {
+  ticketType: string[];
   priority: string[];
   status: string[];
   assignee: string[];
@@ -52,9 +43,13 @@ type DashboardView = 'dashboard' | 'storyStats';
 function App() {
   const [tokens, setTokens] = useState<OAuthTokens | null>(null);
   const [activeView, setActiveView] = useState<DashboardView>('dashboard');
-  const [activeCategory, setActiveCategory] = useState<Category>('FE');
   const [sort, setSort] = useState<SortState>(DEFAULT_SORT);
-  const [filters, setFilters] = useState<Filters>({ priority: [], status: [], assignee: [] });
+  const [filters, setFilters] = useState<Filters>({
+    ticketType: TICKET_TYPE_OPTIONS,
+    priority: [],
+    status: [],
+    assignee: [],
+  });
   const [manualSprintId, setManualSprintId] = useState<string>(() => {
     return window.sessionStorage.getItem(SPRINT_ID_STORAGE_KEY) ?? '';
   });
@@ -113,34 +108,16 @@ function App() {
     };
   }, []);
 
-  const categoryIssues = useMemo(() => {
+  const filteredIssues = useMemo(() => {
     if (data === null) {
       return [];
     }
 
-    if (activeCategory === 'ALL') {
-      return data.issues;
-    }
+    return data.issues.filter((issue) => {
+      if (!filters.ticketType.includes(CATEGORY_LABELS[issue.category])) {
+        return false;
+      }
 
-    return data.issues.filter((issue) => issue.category === activeCategory);
-  }, [data, activeCategory]);
-
-  const filterOptions = useMemo(() => {
-    if (data === null) {
-      return { priorities: [], statuses: [], assignees: [] };
-    }
-
-    const priorities = Array.from(new Set(data.issues.map((issue) => issue.priority))).sort();
-    const statuses = Array.from(new Set(data.issues.map((issue) => issue.status))).sort();
-    const assignees = Array.from(
-      new Set(data.issues.map((issue) => issue.assignee ?? 'Unassigned')),
-    ).sort();
-
-    return { priorities, statuses, assignees };
-  }, [data]);
-
-  const filteredIssues = useMemo(() => {
-    return categoryIssues.filter((issue) => {
       if (filters.priority.length > 0 && !filters.priority.includes(issue.priority)) {
         return false;
       }
@@ -158,39 +135,34 @@ function App() {
 
       return true;
     });
-  }, [categoryIssues, filters]);
+  }, [data, filters]);
 
   const sortedIssues = useMemo(() => {
     return sortIssues(filteredIssues, sort.field, sort.direction);
   }, [filteredIssues, sort]);
 
-  const counts = useMemo(() => {
-    const result: Record<Category, number> = {
-      FE: 0,
-      BE: 0,
-      QA: 0,
-      AQA: 0,
-      FLIGHT: 0,
-      BA: 0,
-      UX: 0,
-      EPIC: 0,
-      BUGS: 0,
-      OTHER: 0,
-      ALL: 0,
-    };
-
+  const filterOptions = useMemo(() => {
     if (data === null) {
-      return result;
+      return { priorities: [], statuses: [], assignees: [] };
     }
 
-    for (const issue of data.issues) {
-      result[issue.category] += 1;
-    }
+    const priorities = Array.from(new Set(data.issues.map((issue) => issue.priority))).sort();
+    const statuses = Array.from(new Set(data.issues.map((issue) => issue.status))).sort();
+    const assignees = Array.from(
+      new Set(data.issues.map((issue) => issue.assignee ?? 'Unassigned')),
+    ).sort();
 
-    result.ALL = data.issues.length;
-
-    return result;
+    return { priorities, statuses, assignees };
   }, [data]);
+
+  const clearFilters = useCallback(() => {
+    setFilters({
+      ticketType: TICKET_TYPE_OPTIONS,
+      priority: [],
+      status: [],
+      assignee: [],
+    });
+  }, [setFilters]);
 
   const handleSort = useCallback(
     (field: SortField) => {
@@ -207,10 +179,6 @@ function App() {
     },
     [setSort],
   );
-
-  const clearFilters = useCallback(() => {
-    setFilters({ priority: [], status: [], assignee: [] });
-  }, [setFilters]);
 
   if (tokens === null) {
     return (
@@ -250,15 +218,15 @@ function App() {
           <StoryTimeStats issues={data.issues} />
         ) : (
           <>
-            <Tabs
-              categories={TABS.map((tab) => tab.key)}
-              counts={counts}
-              labels={CATEGORY_LABELS}
-              activeCategory={activeCategory}
-              onSelect={setActiveCategory}
-            />
-
             <div className="filter-bar">
+              <MultiSelect
+                label="Ticket types"
+                options={TICKET_TYPE_OPTIONS}
+                selected={filters.ticketType}
+                allSelectedLabel="Всі"
+                onChange={(selected) => setFilters((current) => ({ ...current, ticketType: selected }))}
+              />
+
               <MultiSelect
                 label="Priorities"
                 options={filterOptions.priorities}
@@ -285,6 +253,7 @@ function App() {
                 className="filter-clear-button"
                 onClick={clearFilters}
                 disabled={
+                  filters.ticketType.length === TICKET_TYPE_OPTIONS.length &&
                   filters.priority.length === 0 &&
                   filters.status.length === 0 &&
                   filters.assignee.length === 0
