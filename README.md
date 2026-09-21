@@ -58,7 +58,7 @@ Dashboard використовує **"Login with Jira"** — OAuth 2.0 (3LO) в�
 ## Структура проєкту
 
 ```text
-jira-sprint-dashboard/
+extra-jira-reports/
 ├── .github/
 │   └── workflows/
 │       ├── deploy.yml              # GitHub Pages
@@ -172,7 +172,7 @@ npm run deploy
 Після деплою Worker отримає URL виду:
 
 ```text
-https://jira-sprint-dashboard-api.YOUR_SUBDOMAIN.workers.dev
+https://extra-jira-reports-api.YOUR_SUBDOMAIN.workers.dev
 ```
 
 ## GitHub Pages
@@ -183,7 +183,7 @@ https://jira-sprint-dashboard-api.YOUR_SUBDOMAIN.workers.dev
 ```bash
 git init
 git add .
-git commit -m "Initial Jira Sprint Dashboard"
+git commit -m "Initial Extra Jira Reports"
 git branch -M main
 git remote add origin https://github.com/<username>/<repo>.git
 git push -u origin main
