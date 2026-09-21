@@ -57,6 +57,10 @@ export interface DashboardData {
   loadedAt: string;
 }
 
+export interface DashboardPage extends DashboardData {
+  nextPageToken: string | null;
+}
+
 export interface DashboardError {
   error: {
     code: string;

@@ -1,4 +1,4 @@
-import type { DashboardData, DashboardError, OAuthTokens } from '../types/jira';
+import type { DashboardError, DashboardPage, OAuthTokens } from '../types/jira';
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? '').trim();
 const JIRA_CLIENT_ID = (import.meta.env.VITE_JIRA_CLIENT_ID ?? '').trim();
@@ -59,14 +59,17 @@ export async function refreshAccessToken(refreshToken: string): Promise<OAuthTok
   return parseTokenResponse(data);
 }
 
-export async function fetchDashboard(accessToken: string): Promise<DashboardData> {
+export async function fetchDashboardPage(
+  accessToken: string,
+  nextPageToken: string | null,
+): Promise<DashboardPage> {
   const response = await fetch(`${API_BASE_URL}/api/dashboard`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${accessToken}`,
     },
-    body: JSON.stringify({}),
+    body: JSON.stringify(nextPageToken === null ? {} : { nextPageToken }),
   });
 
   const data: unknown = await response.json();
@@ -76,7 +79,7 @@ export async function fetchDashboard(accessToken: string): Promise<DashboardData
     throw new Error(error.error?.message ?? 'Не вдалося завантажити задачі.');
   }
 
-  return data as DashboardData;
+  return data as DashboardPage;
 }
 
 function parseTokenResponse(data: unknown): OAuthTokens {

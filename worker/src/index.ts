@@ -129,6 +129,7 @@ interface DashboardResponse {
   issues: DashboardIssue[];
   bugReportIssues: BugReportIssue[];
   loadedAt: string;
+  nextPageToken: string | null;
 }
 
 interface ErrorResponse {
@@ -146,7 +147,7 @@ interface AccessibleResource {
   avatarUrl: string;
 }
 
-const DEFAULT_MAX_RESULTS = 50;
+const DEFAULT_MAX_RESULTS = 20;
 const ATLASSIAN_TOKEN_URL = 'https://auth.atlassian.com/oauth/token';
 const ATLASSIAN_RESOURCES_URL = 'https://api.atlassian.com/oauth/token/accessible-resources';
 
@@ -282,6 +283,10 @@ async function handleDashboard(request: Request, env: Env): Promise<Response> {
   }
 
   try {
+    const body = (await parseJsonBody<{ nextPageToken?: unknown }>(request)) ?? {};
+    const nextPageToken = typeof body.nextPageToken === 'string' && body.nextPageToken !== ''
+      ? body.nextPageToken
+      : null;
     const cloudId = await resolveCloudId(accessToken, env.JIRA_BASE_URL);
 
     if (cloudId === null) {
@@ -296,15 +301,16 @@ async function handleDashboard(request: Request, env: Env): Promise<Response> {
     const jiraApiBase = `https://api.atlassian.com/ex/jira/${cloudId}`;
     const context: JiraApiContext = { accessToken, jiraApiBase };
 
-    const issues = await fetchProjectIssues(context, env.PROJECT_KEY);
-    const dashboardIssues = await buildDashboardIssues(issues, env.JIRA_BASE_URL);
-    const bugReportIssues = buildBugReportIssues(issues);
+    const page = await fetchProjectIssuesPage(context, env.PROJECT_KEY, nextPageToken);
+    const dashboardIssues = await buildDashboardIssues(page.issues, env.JIRA_BASE_URL);
+    const bugReportIssues = buildBugReportIssues(page.issues);
 
     const response: DashboardResponse = {
       board: { id: 0, name: env.BOARD_NAME },
       issues: dashboardIssues,
       bugReportIssues,
       loadedAt: new Date().toISOString(),
+      nextPageToken: page.nextPageToken,
     };
 
     return jsonResponse(response, 200, request, env);
@@ -363,49 +369,36 @@ async function parseJsonBody<T>(request: Request): Promise<T | null> {
   }
 }
 
-async function fetchProjectIssues(
+async function fetchProjectIssuesPage(
   context: JiraApiContext,
   projectKey: string,
-): Promise<JiraIssue[]> {
-  const issues: JiraIssue[] = [];
-  let nextPageToken: string | null = null;
+  nextPageToken: string | null,
+): Promise<{ issues: JiraIssue[]; nextPageToken: string | null }> {
   const escapedProjectKey = projectKey.replace(/"/g, '\\"');
   const jql = `project = "${escapedProjectKey}" ORDER BY key ASC`;
   const url = `${context.jiraApiBase}/rest/api/3/search/jql`;
+  const body: Record<string, unknown> = {
+    jql,
+    maxResults: DEFAULT_MAX_RESULTS,
+    fields: ['*all'],
+    expand: 'changelog',
+  };
 
-  while (true) {
-    const body: Record<string, unknown> = {
-      jql,
-      maxResults: DEFAULT_MAX_RESULTS,
-      fields: ['*all'],
-      expand: 'changelog',
-    };
-
-    if (nextPageToken !== null) {
-      body.nextPageToken = nextPageToken;
-    }
-
-    const response = await fetchJira(context, url, { method: 'POST', body });
-    const data = (await response.json()) as {
-      issues: JiraIssue[];
-      isLast?: boolean;
-      nextPageToken?: string;
-    };
-
-    issues.push(...(data.issues ?? []));
-
-    if (data.isLast ?? data.nextPageToken === undefined) {
-      break;
-    }
-
-    nextPageToken = data.nextPageToken ?? null;
-
-    if (nextPageToken === null) {
-      break;
-    }
+  if (nextPageToken !== null) {
+    body.nextPageToken = nextPageToken;
   }
 
-  return issues;
+  const response = await fetchJira(context, url, { method: 'POST', body });
+  const data = (await response.json()) as {
+    issues?: JiraIssue[];
+    isLast?: boolean;
+    nextPageToken?: string;
+  };
+
+  return {
+    issues: data.issues ?? [],
+    nextPageToken: data.isLast === true ? null : data.nextPageToken ?? null,
+  };
 }
 
 function buildBugReportIssues(issues: JiraIssue[]): BugReportIssue[] {

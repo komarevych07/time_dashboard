@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react';
 import type { DashboardData, OAuthTokens } from '../types/jira';
-import { fetchDashboard, refreshAccessToken } from '../services/api';
+import { fetchDashboardPage, refreshAccessToken } from '../services/api';
 
 interface DashboardState {
   data: DashboardData | null;
   loading: boolean;
   refreshing: boolean;
+  loadedIssueCount: number;
   error: string | null;
 }
 
@@ -28,6 +29,7 @@ export function useDashboard({
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [loadedIssueCount, setLoadedIssueCount] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(true);
 
@@ -65,10 +67,38 @@ export function useDashboard({
     }
 
     setError(null);
+    setLoadedIssueCount(0);
 
     try {
       const validTokens = await ensureValidAccessToken();
-      const result = await fetchDashboard(validTokens.accessToken);
+      const issues: DashboardData['issues'] = [];
+      const bugReportIssues: DashboardData['bugReportIssues'] = [];
+      const seenTokens = new Set<string>();
+      let nextPageToken: string | null = null;
+      let result: DashboardData | null = null;
+
+      do {
+        const page = await fetchDashboardPage(validTokens.accessToken, nextPageToken);
+        issues.push(...page.issues);
+        bugReportIssues.push(...page.bugReportIssues);
+        result = {
+          board: page.board,
+          issues: [...issues],
+          bugReportIssues: [...bugReportIssues],
+          loadedAt: page.loadedAt,
+        };
+        setLoadedIssueCount(issues.length);
+
+        if (page.nextPageToken !== null) {
+          if (seenTokens.has(page.nextPageToken)) {
+            throw new Error('Jira повернула повторний токен сторінки.');
+          }
+          seenTokens.add(page.nextPageToken);
+        }
+
+        nextPageToken = page.nextPageToken;
+      } while (nextPageToken !== null);
+
       setData(result);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Не вдалося завантажити задачі.');
@@ -110,6 +140,7 @@ export function useDashboard({
     data,
     loading,
     refreshing,
+    loadedIssueCount,
     error,
     refresh,
     autoRefreshEnabled,

@@ -199,7 +199,9 @@ function App() {
         )}
 
         {loading && data === null ? (
-          <div className="loading-overlay">Підключення до Jira...</div>
+          <div className="loading-overlay">
+            Підключення до Jira...{refreshing ? ' Оновлення даних...' : ''}
+          </div>
         ) : data === null ? null : activeView === 'storyStats' ? (
           <StoryTimeStats issues={data.issues} />
         ) : activeView === 'bugAging' ? (
