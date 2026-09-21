@@ -147,7 +147,7 @@ interface AccessibleResource {
   avatarUrl: string;
 }
 
-const DEFAULT_MAX_RESULTS = 60;
+const DEFAULT_MAX_RESULTS = 100;
 const ATLASSIAN_TOKEN_URL = 'https://auth.atlassian.com/oauth/token';
 const ATLASSIAN_RESOURCES_URL = 'https://api.atlassian.com/oauth/token/accessible-resources';
 
