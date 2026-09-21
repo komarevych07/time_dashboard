@@ -103,7 +103,7 @@ export function StoryTimeStats({ issues, issueType = 'story' }: StoryTimeStatsPr
   };
 
   if (stories.length === 0) {
-    return <div className="story-stats-empty">У цьому спринті немає задач типу {issueType}.</div>;
+    return <div className="story-stats-empty">У проєкті немає задач типу {issueType}.</div>;
   }
 
   return (

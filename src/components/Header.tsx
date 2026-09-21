@@ -78,8 +78,8 @@ export const Header: React.FC<HeaderProps> = ({
             <span className="header-meta-value">{data?.board.name ?? '—'}</span>
           </span>
           <span className="header-meta-item">
-            <span className="header-meta-label">Sprint:</span>
-            <span className="header-meta-value">{data?.sprint.name ?? '—'}</span>
+            <span className="header-meta-label">Scope:</span>
+            <span className="header-meta-value">All project issues</span>
           </span>
           <span className="header-meta-item">
             <span className="header-meta-label">Tasks:</span>

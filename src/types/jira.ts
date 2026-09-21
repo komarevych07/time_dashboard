@@ -42,12 +42,6 @@ export interface BoardInfo {
   name: string;
 }
 
-export interface SprintInfo {
-  id: number;
-  name: string;
-  state: string;
-}
-
 export interface BugReportIssue {
   id: string;
   key: string;
@@ -58,7 +52,6 @@ export interface BugReportIssue {
 
 export interface DashboardData {
   board: BoardInfo;
-  sprint: SprintInfo;
   issues: DashboardIssue[];
   bugReportIssues: BugReportIssue[];
   loadedAt: string;

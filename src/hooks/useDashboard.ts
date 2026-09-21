@@ -15,13 +15,11 @@ const TOKEN_REFRESH_BUFFER_MS = 60 * 1000;
 interface UseDashboardProps {
   tokens: OAuthTokens | null;
   onTokensChange: (tokens: OAuthTokens) => void;
-  sprintId?: string;
 }
 
 export function useDashboard({
   tokens,
   onTokensChange,
-  sprintId,
 }: UseDashboardProps): DashboardState & {
   refresh: () => void;
   autoRefreshEnabled: boolean;
@@ -35,10 +33,8 @@ export function useDashboard({
 
   const tokensRef = useRef(tokens);
   const onTokensChangeRef = useRef(onTokensChange);
-  const sprintIdRef = useRef(sprintId);
   tokensRef.current = tokens;
   onTokensChangeRef.current = onTokensChange;
-  sprintIdRef.current = sprintId;
 
   const ensureValidAccessToken = useCallback(async (): Promise<OAuthTokens> => {
     const currentTokens = tokensRef.current;
@@ -72,7 +68,7 @@ export function useDashboard({
 
     try {
       const validTokens = await ensureValidAccessToken();
-      const result = await fetchDashboard(validTokens.accessToken, sprintIdRef.current);
+      const result = await fetchDashboard(validTokens.accessToken);
       setData(result);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Не вдалося завантажити задачі.');
@@ -90,7 +86,7 @@ export function useDashboard({
     setData(null);
     setError(null);
     void load(false);
-  }, [tokens, sprintId, load]);
+  }, [tokens, load]);
 
   useEffect(() => {
     if (!autoRefreshEnabled || tokens === null) {

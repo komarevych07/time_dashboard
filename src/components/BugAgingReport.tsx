@@ -4,7 +4,7 @@ import { StoryTimeStats } from './StoryTimeStats';
 
 interface BugAgingReportProps {
   issues: BugReportIssue[];
-  sprintIssues: DashboardIssue[];
+  projectIssues: DashboardIssue[];
 }
 
 const PRIORITY_ORDER = ['Highest', 'High', 'Medium', 'Low', 'Lowest', 'None'];
@@ -38,7 +38,7 @@ function parseDateInput(value: string): number | null {
   return Date.UTC(year, month - 1, day);
 }
 
-export function BugAgingReport({ issues, sprintIssues }: BugAgingReportProps) {
+export function BugAgingReport({ issues, projectIssues }: BugAgingReportProps) {
   const [activeTab, setActiveTab] = useState<'table' | 'timeStats'>('table');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
@@ -122,7 +122,7 @@ export function BugAgingReport({ issues, sprintIssues }: BugAgingReportProps) {
       </div>
 
       {activeTab === 'timeStats' ? (
-        <StoryTimeStats issues={sprintIssues} issueType="Bug" />
+        <StoryTimeStats issues={projectIssues} issueType="Bug" />
       ) : (
         <>
           <div className="bug-aging-filters">

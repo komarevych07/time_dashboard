@@ -32,12 +32,6 @@ interface JiraApiContext {
   jiraApiBase: string;
 }
 
-interface JiraSprint {
-  id: number;
-  name: string;
-  state: string;
-}
-
 interface JiraLinkedIssue {
   id: string;
   key: string;
@@ -132,7 +126,6 @@ interface BugReportIssue {
 
 interface DashboardResponse {
   board: { id: number; name: string };
-  sprint: { id: number; name: string; state: string };
   issues: DashboardIssue[];
   bugReportIssues: BugReportIssue[];
   loadedAt: string;
@@ -289,7 +282,6 @@ async function handleDashboard(request: Request, env: Env): Promise<Response> {
   }
 
   try {
-    const body = (await parseJsonBody<{ sprintId?: string }>(request)) ?? {};
     const cloudId = await resolveCloudId(accessToken, env.JIRA_BASE_URL);
 
     if (cloudId === null) {
@@ -304,30 +296,12 @@ async function handleDashboard(request: Request, env: Env): Promise<Response> {
     const jiraApiBase = `https://api.atlassian.com/ex/jira/${cloudId}`;
     const context: JiraApiContext = { accessToken, jiraApiBase };
 
-    const { sprint, issues } = await fetchActiveSprintIssues(context, env.PROJECT_KEY, body.sprintId);
-
-    if (sprint === null) {
-      return jsonResponse(
-        {
-          error: {
-            code: 'ACTIVE_SPRINT_NOT_FOUND',
-            message: `Sprint не знайдено. Project: "${env.PROJECT_KEY}", Sprint: "${body.sprintId ?? 'auto'}", issues: ${issues.length}. Перевір PROJECT_KEY та Sprint ID/назву.`,
-          },
-        },
-        404,
-        request,
-        env,
-      );
-    }
-
-    const [dashboardIssues, bugReportIssues] = await Promise.all([
-      buildDashboardIssues(issues, env.JIRA_BASE_URL),
-      fetchBugReportIssues(context, env.PROJECT_KEY).catch(() => []),
-    ]);
+    const issues = await fetchProjectIssues(context, env.PROJECT_KEY);
+    const dashboardIssues = await buildDashboardIssues(issues, env.JIRA_BASE_URL);
+    const bugReportIssues = buildBugReportIssues(issues);
 
     const response: DashboardResponse = {
       board: { id: 0, name: env.BOARD_NAME },
-      sprint: { id: sprint.id, name: sprint.name, state: sprint.state },
       issues: dashboardIssues,
       bugReportIssues,
       loadedAt: new Date().toISOString(),
@@ -389,71 +363,14 @@ async function parseJsonBody<T>(request: Request): Promise<T | null> {
   }
 }
 
-function isSprintValue(value: unknown): value is { id: number; name: string; state: string } {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    'id' in value &&
-    'name' in value &&
-    'state' in value &&
-    typeof (value as Record<string, unknown>).state === 'string'
-  );
-}
-
-function extractActiveSprint(issues: JiraIssue[], sprintId?: string): JiraSprint | null {
-  let fallback: JiraSprint | null = null;
-
-  for (const issue of issues) {
-    for (const fieldValue of Object.values(issue.fields)) {
-      if (!Array.isArray(fieldValue)) {
-        continue;
-      }
-
-      for (const item of fieldValue) {
-        if (!isSprintValue(item)) {
-          continue;
-        }
-
-        if (sprintId !== undefined && String(item.id) === sprintId) {
-          return { id: item.id, name: item.name, state: item.state };
-        }
-
-        if (item.state.toUpperCase() === 'ACTIVE') {
-          return { id: item.id, name: item.name, state: item.state };
-        }
-
-        if (fallback === null) {
-          fallback = { id: item.id, name: item.name, state: item.state };
-        }
-      }
-    }
-  }
-
-  return fallback;
-}
-
-function buildSprintFilter(sprintId?: string): string {
-  if (sprintId === undefined || sprintId === '') {
-    return 'sprint in openSprints()';
-  }
-
-  if (/^\d+$/.test(sprintId)) {
-    return `sprint = "Sprint ${sprintId}"`;
-  }
-
-  const escaped = sprintId.replace(/"/g, '\\"');
-  return `sprint = "${escaped}"`;
-}
-
-async function fetchActiveSprintIssues(
+async function fetchProjectIssues(
   context: JiraApiContext,
   projectKey: string,
-  sprintId?: string,
-): Promise<{ sprint: JiraSprint | null; issues: JiraIssue[] }> {
+): Promise<JiraIssue[]> {
   const issues: JiraIssue[] = [];
   let nextPageToken: string | null = null;
-  const sprintFilter = buildSprintFilter(sprintId);
-  const jql = `project = ${projectKey} AND ${sprintFilter} ORDER BY key ASC`;
+  const escapedProjectKey = projectKey.replace(/"/g, '\\"');
+  const jql = `project = "${escapedProjectKey}" ORDER BY key ASC`;
   const url = `${context.jiraApiBase}/rest/api/3/search/jql`;
 
   while (true) {
@@ -468,19 +385,14 @@ async function fetchActiveSprintIssues(
       body.nextPageToken = nextPageToken;
     }
 
-    const response = await fetchJira(context, url, {
-      method: 'POST',
-      body,
-    });
-
+    const response = await fetchJira(context, url, { method: 'POST', body });
     const data = (await response.json()) as {
       issues: JiraIssue[];
       isLast?: boolean;
       nextPageToken?: string;
     };
 
-    const pageIssues = data.issues ?? [];
-    issues.push(...pageIssues);
+    issues.push(...(data.issues ?? []));
 
     if (data.isLast ?? data.nextPageToken === undefined) {
       break;
@@ -493,9 +405,19 @@ async function fetchActiveSprintIssues(
     }
   }
 
-  const sprint = extractActiveSprint(issues, sprintId);
+  return issues;
+}
 
-  return { sprint, issues };
+function buildBugReportIssues(issues: JiraIssue[]): BugReportIssue[] {
+  return issues
+    .filter((issue) => issue.fields.issuetype?.name.toLowerCase() === 'bug')
+    .map((issue) => ({
+      id: issue.id,
+      key: issue.key,
+      priority: issue.fields.priority?.name ?? 'None',
+      reportedAt: issue.fields.created,
+      lastInProgressExitAt: findLastInProgressExit(issue)?.toISOString() ?? null,
+    }));
 }
 
 async function buildDashboardIssues(
@@ -656,7 +578,7 @@ function buildLinkedIssues(
 
 function computeStatusSince(issue: JiraIssue): string {
   const currentStatus = issue.fields.status?.name ?? '';
-  let latestTransition: JiraChangelogEntry | null = null;
+  let latestTransition: Date | null = null;
 
   const entries = issue.changelog?.histories ?? [];
 
@@ -669,16 +591,15 @@ function computeStatusSince(issue: JiraIssue): string {
       continue;
     }
 
-    if (
-      latestTransition === null ||
-      new Date(entry.created).getTime() > new Date(latestTransition.created).getTime()
-    ) {
-      latestTransition = entry;
+    const entryDate = new Date(entry.created);
+
+    if (latestTransition === null || entryDate > latestTransition) {
+      latestTransition = entryDate;
     }
   }
 
   if (latestTransition !== null) {
-    return latestTransition.created;
+    return latestTransition.toISOString();
   }
 
   return issue.fields.created;
@@ -700,7 +621,7 @@ function computeLeadTimeSeconds(issue: JiraIssue): number {
 }
 
 function findLatestDoneTransition(issue: JiraIssue): Date | null {
-  let latestExit: Date | null = null;
+  let latestEntry: Date | null = null;
 
   for (const entry of issue.changelog?.histories ?? []) {
     const movedToDone = entry.items.some(
@@ -713,12 +634,12 @@ function findLatestDoneTransition(issue: JiraIssue): Date | null {
 
     const entryDate = new Date(entry.created);
 
-    if (latestExit === null || entryDate.getTime() > latestExit.getTime()) {
-      latestExit = entryDate;
+    if (latestEntry === null || entryDate > latestEntry) {
+      latestEntry = entryDate;
     }
   }
 
-  return latestExit;
+  return latestEntry;
 }
 
 function computeStatusDurations(issue: JiraIssue): StatusDuration[] {
@@ -962,55 +883,6 @@ function applyCorsHeaders(response: Response, request: Request, env: Env): Respo
   return response;
 }
 
-async function fetchBugReportIssues(
-  context: JiraApiContext,
-  projectKey: string,
-): Promise<BugReportIssue[]> {
-  const issues: JiraIssue[] = [];
-  let nextPageToken: string | null = null;
-  const url = `${context.jiraApiBase}/rest/api/3/search/jql`;
-
-  while (true) {
-    const body: Record<string, unknown> = {
-      jql: `project = "${projectKey.replace(/"/g, '\\"')}" AND issuetype = Bug ORDER BY created ASC`,
-      maxResults: DEFAULT_MAX_RESULTS,
-      fields: ['created', 'priority'],
-      expand: 'changelog',
-    };
-
-    if (nextPageToken !== null) {
-      body.nextPageToken = nextPageToken;
-    }
-
-    const response = await fetchJira(context, url, { method: 'POST', body });
-    const data = (await response.json()) as {
-      issues: JiraIssue[];
-      isLast?: boolean;
-      nextPageToken?: string;
-    };
-
-    issues.push(...(data.issues ?? []));
-
-    if (data.isLast ?? data.nextPageToken === undefined) {
-      break;
-    }
-
-    nextPageToken = data.nextPageToken ?? null;
-
-    if (nextPageToken === null) {
-      break;
-    }
-  }
-
-  return issues.map((issue) => ({
-    id: issue.id,
-    key: issue.key,
-    priority: issue.fields.priority?.name ?? 'None',
-    reportedAt: issue.fields.created,
-    lastInProgressExitAt: findLastInProgressExit(issue)?.toISOString() ?? null,
-  }));
-}
-
 function findLastInProgressExit(issue: JiraIssue): Date | null {
   let latestExit: Date | null = null;
 
@@ -1028,7 +900,7 @@ function findLastInProgressExit(issue: JiraIssue): Date | null {
 
     const entryDate = new Date(entry.created);
 
-    if (latestExit === null || entryDate.getTime() > latestExit.getTime()) {
+    if (latestExit === null || entryDate > latestExit) {
       latestExit = entryDate;
     }
   }
