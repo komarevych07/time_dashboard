@@ -37,6 +37,7 @@ interface Filters {
   priority: string[];
   status: string[];
   assignee: string[];
+  fixVersion: string[];
 }
 
 type DashboardView = 'dashboard' | 'storyStats' | 'bugAging';
@@ -50,6 +51,7 @@ function App() {
     priority: [],
     status: [],
     assignee: [],
+    fixVersion: [],
   });
 
   const {
@@ -126,6 +128,13 @@ function App() {
         }
       }
 
+      if (
+        filters.fixVersion.length > 0 &&
+        !(issue.fixVersions ?? []).some((version) => filters.fixVersion.includes(version))
+      ) {
+        return false;
+      }
+
       return true;
     });
   }, [data, filters]);
@@ -136,7 +145,7 @@ function App() {
 
   const filterOptions = useMemo(() => {
     if (data === null) {
-      return { priorities: [], statuses: [], assignees: [] };
+      return { priorities: [], statuses: [], assignees: [], fixVersions: [] };
     }
 
     const priorities = Array.from(new Set(data.issues.map((issue) => issue.priority))).sort();
@@ -144,8 +153,9 @@ function App() {
     const assignees = Array.from(
       new Set(data.issues.map((issue) => issue.assignee ?? 'Unassigned')),
     ).sort();
+    const fixVersions = Array.from(new Set(data.issues.flatMap((issue) => issue.fixVersions ?? []))).sort();
 
-    return { priorities, statuses, assignees };
+    return { priorities, statuses, assignees, fixVersions };
   }, [data]);
 
   const clearFilters = useCallback(() => {
@@ -154,6 +164,7 @@ function App() {
       priority: [],
       status: [],
       assignee: [],
+      fixVersion: [],
     });
   }, [setFilters]);
 
@@ -238,6 +249,13 @@ function App() {
                 onChange={(selected) => setFilters((current) => ({ ...current, assignee: selected }))}
               />
 
+              <MultiSelect
+                label="Fix version"
+                options={filterOptions.fixVersions}
+                selected={filters.fixVersion}
+                onChange={(selected) => setFilters((current) => ({ ...current, fixVersion: selected }))}
+              />
+
               <button
                 type="button"
                 className="filter-clear-button"
@@ -246,7 +264,8 @@ function App() {
                   filters.ticketType.length === TICKET_TYPE_OPTIONS.length &&
                   filters.priority.length === 0 &&
                   filters.status.length === 0 &&
-                  filters.assignee.length === 0
+                  filters.assignee.length === 0 &&
+                  filters.fixVersion.length === 0
                 }
               >
                 Clear all filters
@@ -289,6 +308,15 @@ function App() {
                     setFilters((current) => ({
                       ...current,
                       assignee: current.assignee.filter((item) => item !== value),
+                    })),
+                },
+                {
+                  label: 'Fix version',
+                  values: filters.fixVersion,
+                  onRemove: (value) =>
+                    setFilters((current) => ({
+                      ...current,
+                      fixVersion: current.fixVersion.filter((item) => item !== value),
                     })),
                 },
               ]}

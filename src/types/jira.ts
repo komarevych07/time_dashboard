@@ -35,6 +35,7 @@ export interface DashboardIssue {
   leadTimeSeconds: number;
   statusDurations: StatusDuration[];
   linkedIssues: LinkedIssue[];
+  fixVersions: string[];
 }
 
 export interface BoardInfo {

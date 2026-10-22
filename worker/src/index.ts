@@ -47,6 +47,7 @@ interface JiraIssueFields {
   status?: { name: string } | null;
   assignee?: { displayName: string } | null;
   issuetype?: { name: string } | null;
+  fixVersions?: { name: string }[] | null;
   subtasks?: JiraLinkedIssue[];
   issuelinks?: {
     id: string;
@@ -114,6 +115,7 @@ interface DashboardIssue {
   leadTimeSeconds: number;
   statusDurations: StatusDuration[];
   linkedIssues: LinkedIssue[];
+  fixVersions: string[];
 }
 
 interface BugReportIssue {
@@ -465,6 +467,7 @@ function buildBasicDashboardIssue(issue: JiraIssue, baseUrl: string): DashboardI
     leadTimeSeconds,
     statusDurations,
     linkedIssues: [],
+    fixVersions: issue.fields.fixVersions?.map((version) => version.name) ?? [],
   };
 }
 
