@@ -149,7 +149,20 @@ interface AccessibleResource {
   avatarUrl: string;
 }
 
-const DEFAULT_MAX_RESULTS = 200;
+const DEFAULT_MAX_RESULTS = 100;
+const JIRA_RETRY_DELAYS_MS = [500, 1500, 3000];
+const ISSUE_FIELDS = [
+  'summary',
+  'created',
+  'updated',
+  'priority',
+  'status',
+  'assignee',
+  'issuetype',
+  'fixVersions',
+  'subtasks',
+  'issuelinks',
+];
 const ATLASSIAN_TOKEN_URL = 'https://auth.atlassian.com/oauth/token';
 const ATLASSIAN_RESOURCES_URL = 'https://api.atlassian.com/oauth/token/accessible-resources';
 
@@ -382,7 +395,7 @@ async function fetchProjectIssuesPage(
   const body: Record<string, unknown> = {
     jql,
     maxResults: DEFAULT_MAX_RESULTS,
-    fields: ['*all'],
+    fields: ISSUE_FIELDS,
     expand: 'changelog',
   };
 
@@ -751,11 +764,34 @@ async function fetchJira(
     'Content-Type': 'application/json',
   };
 
-  const response = await fetch(url, {
-    method,
-    headers,
-    body: method === 'POST' ? JSON.stringify(options.body) : undefined,
-  });
+  let response: Response | null = null;
+  let lastError: unknown = null;
+
+  for (let attempt = 0; attempt <= JIRA_RETRY_DELAYS_MS.length; attempt++) {
+    if (attempt > 0) {
+      await sleep(JIRA_RETRY_DELAYS_MS[attempt - 1]!);
+    }
+
+    try {
+      response = await fetch(url, {
+        method,
+        headers,
+        body: method === 'POST' ? JSON.stringify(options.body) : undefined,
+      });
+    } catch (error) {
+      lastError = error;
+      response = null;
+      continue;
+    }
+
+    if (response.ok || !isRetryableStatus(response.status)) {
+      break;
+    }
+  }
+
+  if (response === null) {
+    throw lastError instanceof Error ? lastError : new Error('Jira request failed');
+  }
 
   if (!response.ok) {
     const body = await response.text();
@@ -767,6 +803,14 @@ async function fetchJira(
   }
 
   return response;
+}
+
+function isRetryableStatus(status: number): boolean {
+  return status === 429 || status >= 500;
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function handleJiraError(error: unknown, request: Request, env: Env): Response {

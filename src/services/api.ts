@@ -59,27 +59,60 @@ export async function refreshAccessToken(refreshToken: string): Promise<OAuthTok
   return parseTokenResponse(data);
 }
 
+const RETRY_DELAYS_MS = [1000, 2000, 4000];
+
 export async function fetchDashboardPage(
   accessToken: string,
   nextPageToken: string | null,
 ): Promise<DashboardPage> {
-  const response = await fetch(`${API_BASE_URL}/api/dashboard`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${accessToken}`,
-    },
-    body: JSON.stringify(nextPageToken === null ? {} : { nextPageToken }),
-  });
+  let lastError: unknown = null;
 
-  const data: unknown = await response.json();
+  for (let attempt = 0; attempt <= RETRY_DELAYS_MS.length; attempt++) {
+    if (attempt > 0) {
+      await sleep(RETRY_DELAYS_MS[attempt - 1]!);
+    }
 
-  if (!response.ok) {
-    const error = data as DashboardError;
-    throw new Error(error.error?.message ?? 'Не вдалося завантажити задачі.');
+    let response: Response;
+
+    try {
+      response = await fetch(`${API_BASE_URL}/api/dashboard`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify(nextPageToken === null ? {} : { nextPageToken }),
+      });
+    } catch (error) {
+      // TypeError: Failed to fetch — мережева помилка, повторюємо
+      lastError = error;
+      continue;
+    }
+
+    const data: unknown = await response.json();
+
+    if (!response.ok) {
+      const error = data as DashboardError;
+      const message = error.error?.message ?? 'Не вдалося завантажити задачі.';
+
+      if (response.status === 429 || response.status >= 500) {
+        lastError = new Error(message);
+        continue;
+      }
+
+      throw new Error(message);
+    }
+
+    return data as DashboardPage;
   }
 
-  return data as DashboardPage;
+  throw lastError instanceof Error
+    ? lastError
+    : new Error('Не вдалося завантажити задачі. Перевірте з\'єднання.');
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function parseTokenResponse(data: unknown): OAuthTokens {
