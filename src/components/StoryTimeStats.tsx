@@ -35,25 +35,54 @@ export function StoryTimeStats({ issues, issueType = 'story' }: StoryTimeStatsPr
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [statusFilter, setStatusFilter] = useState<string[]>([]);
   const [assigneeFilter, setAssigneeFilter] = useState<string[]>([]);
+  const [fixVersionFilter, setFixVersionFilter] = useState<string[]>([]);
+  // null = ще не обрано вручну, використовуємо тип за замовчуванням (проп issueType)
+  const [typeFilter, setTypeFilter] = useState<string[] | null>(null);
+  const [keySearch, setKeySearch] = useState('');
 
   const clearFilters = () => {
     setStatusFilter([]);
     setAssigneeFilter([]);
+    setFixVersionFilter([]);
+    setTypeFilter(null);
+    setKeySearch('');
   };
 
   const filterOptions = useMemo(() => {
-    const matchingIssues = issues.filter((issue) => issue.issueType.toLowerCase() === issueType.toLowerCase());
+    const typeCounts = new Map<string, number>();
+
+    for (const issue of issues) {
+      typeCounts.set(issue.issueType, (typeCounts.get(issue.issueType) ?? 0) + 1);
+    }
+
+    const types = Array.from(typeCounts.keys()).sort();
+    const defaultTypes = types.filter(
+      (type) => type.toLowerCase() === issueType.toLowerCase(),
+    );
+    const effectiveTypes = typeFilter ?? defaultTypes;
+    const typeSet = new Set(effectiveTypes.map((type) => type.toLowerCase()));
+    const matchingIssues = issues.filter((issue) =>
+      typeSet.has(issue.issueType.toLowerCase()),
+    );
     const statuses = Array.from(new Set(matchingIssues.map((issue) => issue.status))).sort();
     const assignees = Array.from(
       new Set(matchingIssues.map((issue) => issue.assignee ?? 'Unassigned')),
     ).sort();
+    const fixVersions = Array.from(
+      new Set(matchingIssues.flatMap((issue) => issue.fixVersions)),
+    ).sort();
 
-    return { statuses, assignees };
-  }, [issues, issueType]);
+    return { types, defaultTypes, effectiveTypes, statuses, assignees, fixVersions };
+  }, [issues, issueType, typeFilter]);
 
   const stories = useMemo(() => {
+    const typeSet = new Set(
+      filterOptions.effectiveTypes.map((type) => type.toLowerCase()),
+    );
+    const normalizedSearch = keySearch.trim().toLowerCase();
+
     const filtered = issues.filter((issue) => {
-      if (issue.issueType.toLowerCase() !== issueType.toLowerCase()) {
+      if (!typeSet.has(issue.issueType.toLowerCase())) {
         return false;
       }
 
@@ -63,6 +92,17 @@ export function StoryTimeStats({ issues, issueType = 'story' }: StoryTimeStatsPr
 
       const normalizedAssignee = issue.assignee ?? 'Unassigned';
       if (assigneeFilter.length > 0 && !assigneeFilter.includes(normalizedAssignee)) {
+        return false;
+      }
+
+      if (
+        fixVersionFilter.length > 0 &&
+        !issue.fixVersions.some((version) => fixVersionFilter.includes(version))
+      ) {
+        return false;
+      }
+
+      if (normalizedSearch !== '' && !issue.key.toLowerCase().includes(normalizedSearch)) {
         return false;
       }
 
@@ -79,7 +119,7 @@ export function StoryTimeStats({ issues, issueType = 'story' }: StoryTimeStatsPr
         ? a.leadTimeSeconds - b.leadTimeSeconds
         : b.leadTimeSeconds - a.leadTimeSeconds;
     });
-  }, [issues, issueType, sort, statusFilter, assigneeFilter]);
+  }, [issues, filterOptions.effectiveTypes, sort, statusFilter, assigneeFilter, fixVersionFilter, keySearch]);
 
   const toggleSort = (field: SortField) => {
     setSort((current) => ({
@@ -102,7 +142,14 @@ export function StoryTimeStats({ issues, issueType = 'story' }: StoryTimeStatsPr
     });
   };
 
-  if (stories.length === 0) {
+  const hasActiveFilters =
+    statusFilter.length > 0 ||
+    assigneeFilter.length > 0 ||
+    fixVersionFilter.length > 0 ||
+    typeFilter !== null ||
+    keySearch.trim() !== '';
+
+  if (stories.length === 0 && !hasActiveFilters) {
     return <div className="story-stats-empty">У проєкті немає задач типу {issueType}.</div>;
   }
 
@@ -123,14 +170,36 @@ export function StoryTimeStats({ issues, issueType = 'story' }: StoryTimeStatsPr
           onChange={setAssigneeFilter}
         />
 
+        <MultiSelect
+          label="Release version"
+          options={filterOptions.fixVersions}
+          selected={fixVersionFilter}
+          onChange={setFixVersionFilter}
+        />
+
+        <MultiSelect
+          label="Task type"
+          options={filterOptions.types}
+          selected={filterOptions.effectiveTypes}
+          onChange={setTypeFilter}
+        />
+
         <button
           type="button"
           className="story-stats-filter-clear"
           onClick={clearFilters}
-          disabled={statusFilter.length === 0 && assigneeFilter.length === 0}
+          disabled={!hasActiveFilters}
         >
           Clear all filters
         </button>
+
+        <input
+          type="search"
+          className="story-stats-search"
+          placeholder="Пошук за номером (PROJ-123)"
+          value={keySearch}
+          onChange={(event) => setKeySearch(event.target.value)}
+        />
       </div>
 
       <AppliedFilters
@@ -145,8 +214,25 @@ export function StoryTimeStats({ issues, issueType = 'story' }: StoryTimeStatsPr
             values: assigneeFilter,
             onRemove: (value) => setAssigneeFilter((current) => current.filter((item) => item !== value)),
           },
+          {
+            label: 'Release version',
+            values: fixVersionFilter,
+            onRemove: (value) => setFixVersionFilter((current) => current.filter((item) => item !== value)),
+          },
+          {
+            label: 'Task type',
+            values: typeFilter ?? [],
+            onRemove: (value) =>
+              setTypeFilter((current) =>
+                (current ?? filterOptions.defaultTypes).filter((item) => item !== value),
+              ),
+          },
         ]}
       />
+
+      {stories.length === 0 && (
+        <div className="story-stats-empty">Задачі за вибраними фільтрами не знайдено.</div>
+      )}
 
       <div className="story-stats-header">
         <span className="story-stats-header-cell">Номер</span>

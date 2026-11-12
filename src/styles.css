@@ -25,7 +25,7 @@ body {
 }
 
 body {
-  font-family: var(--font-sans);
+  font-family: var(--font-sans), sans-serif;
   background-color: var(--color-bg);
   color: var(--color-text);
   line-height: 1.5;
@@ -163,7 +163,7 @@ body {
   font-size: 14px;
   font-weight: 500;
   color: var(--color-text-muted);
-  background-color: var(--color-background);
+  background-color: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: 6px;
   cursor: pointer;
@@ -267,7 +267,7 @@ body {
   padding: 8px 12px;
   font-size: 14px;
   color: var(--color-text);
-  background-color: var(--color-background);
+  background-color: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: 6px;
   cursor: pointer;
@@ -667,7 +667,7 @@ body {
 .view-switcher {
   display: inline-flex;
   gap: 4px;
-  background-color: var(--color-background);
+  background-color: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: 8px;
   padding: 4px;
@@ -808,6 +808,24 @@ body {
 .story-stats-filter-clear:disabled {
   opacity: 0.5;
   cursor: default;
+}
+
+.story-stats-search {
+  margin-left: auto;
+  padding: 8px 14px;
+  font-size: 14px;
+  color: var(--color-text);
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  min-width: 220px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.story-stats-search:focus {
+  outline: none;
+  border-color: var(--color-primary, #3b82f6);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
 }
 
 .story-stats-row {
@@ -1041,7 +1059,7 @@ body {
 
 .bug-aging-subtab:hover {
   color: var(--color-text);
-  background: var(--color-background);
+  background: var(--color-surface);
 }
 
 .bug-aging-subtab-active,
@@ -1075,7 +1093,7 @@ body {
   padding: 7px 10px;
   font: inherit;
   color: var(--color-text);
-  background: var(--color-background);
+  background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: 6px;
   color-scheme: light;
@@ -1093,7 +1111,7 @@ body {
   font-size: 14px;
   font-weight: 500;
   color: var(--color-text-muted);
-  background: var(--color-background);
+  background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: 6px;
   cursor: pointer;
