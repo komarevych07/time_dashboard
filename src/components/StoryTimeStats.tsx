@@ -25,9 +25,10 @@ type SortDirection = 'asc' | 'desc';
 interface StoryTimeStatsProps {
   issues: DashboardIssue[];
   issueType?: string;
+  showReporterFilter?: boolean;
 }
 
-export function StoryTimeStats({ issues, issueType = 'story' }: StoryTimeStatsProps) {
+export function StoryTimeStats({ issues, issueType = 'story', showReporterFilter = false }: StoryTimeStatsProps) {
   const [sort, setSort] = useState<{ field: SortField; direction: SortDirection }>({
     field: 'leadTime',
     direction: 'desc',
@@ -36,6 +37,7 @@ export function StoryTimeStats({ issues, issueType = 'story' }: StoryTimeStatsPr
   const [statusFilter, setStatusFilter] = useState<string[]>([]);
   const [assigneeFilter, setAssigneeFilter] = useState<string[]>([]);
   const [fixVersionFilter, setFixVersionFilter] = useState<string[]>([]);
+  const [reporterFilter, setReporterFilter] = useState<string[]>([]);
   // null = ще не обрано вручну, використовуємо тип за замовчуванням (проп issueType)
   const [typeFilter, setTypeFilter] = useState<string[] | null>(null);
   const [keySearch, setKeySearch] = useState('');
@@ -44,6 +46,7 @@ export function StoryTimeStats({ issues, issueType = 'story' }: StoryTimeStatsPr
     setStatusFilter([]);
     setAssigneeFilter([]);
     setFixVersionFilter([]);
+    setReporterFilter([]);
     setTypeFilter(null);
     setKeySearch('');
   };
@@ -71,8 +74,11 @@ export function StoryTimeStats({ issues, issueType = 'story' }: StoryTimeStatsPr
     const fixVersions = Array.from(
       new Set(matchingIssues.flatMap((issue) => issue.fixVersions)),
     ).sort();
+    const reporters = Array.from(
+      new Set(matchingIssues.map((issue) => issue.reporter ?? 'Unknown')),
+    ).sort();
 
-    return { types, defaultTypes, effectiveTypes, statuses, assignees, fixVersions };
+    return { types, defaultTypes, effectiveTypes, statuses, assignees, fixVersions, reporters };
   }, [issues, issueType, typeFilter]);
 
   const stories = useMemo(() => {
@@ -102,6 +108,10 @@ export function StoryTimeStats({ issues, issueType = 'story' }: StoryTimeStatsPr
         return false;
       }
 
+      if (reporterFilter.length > 0 && !reporterFilter.includes(issue.reporter ?? 'Unknown')) {
+        return false;
+      }
+
       if (normalizedSearch !== '' && !issue.key.toLowerCase().includes(normalizedSearch)) {
         return false;
       }
@@ -119,7 +129,7 @@ export function StoryTimeStats({ issues, issueType = 'story' }: StoryTimeStatsPr
         ? a.leadTimeSeconds - b.leadTimeSeconds
         : b.leadTimeSeconds - a.leadTimeSeconds;
     });
-  }, [issues, filterOptions.effectiveTypes, sort, statusFilter, assigneeFilter, fixVersionFilter, keySearch]);
+  }, [issues, filterOptions.effectiveTypes, sort, statusFilter, assigneeFilter, fixVersionFilter, reporterFilter, keySearch]);
 
   const toggleSort = (field: SortField) => {
     setSort((current) => ({
@@ -146,6 +156,7 @@ export function StoryTimeStats({ issues, issueType = 'story' }: StoryTimeStatsPr
     statusFilter.length > 0 ||
     assigneeFilter.length > 0 ||
     fixVersionFilter.length > 0 ||
+    reporterFilter.length > 0 ||
     typeFilter !== null ||
     keySearch.trim() !== '';
 
@@ -177,6 +188,15 @@ export function StoryTimeStats({ issues, issueType = 'story' }: StoryTimeStatsPr
           onChange={setFixVersionFilter}
         />
 
+        {showReporterFilter && (
+          <MultiSelect
+            label="Reporter"
+            options={filterOptions.reporters}
+            selected={reporterFilter}
+            onChange={setReporterFilter}
+          />
+        )}
+
         <MultiSelect
           label="Task type"
           options={filterOptions.types}
@@ -196,7 +216,7 @@ export function StoryTimeStats({ issues, issueType = 'story' }: StoryTimeStatsPr
         <input
           type="search"
           className="story-stats-search"
-          placeholder="Пошук за номером (PROJ-123)"
+          placeholder="Пошук за номером (COP-123)"
           value={keySearch}
           onChange={(event) => setKeySearch(event.target.value)}
         />
@@ -218,6 +238,11 @@ export function StoryTimeStats({ issues, issueType = 'story' }: StoryTimeStatsPr
             label: 'Release version',
             values: fixVersionFilter,
             onRemove: (value) => setFixVersionFilter((current) => current.filter((item) => item !== value)),
+          },
+          {
+            label: 'Reporter',
+            values: reporterFilter,
+            onRemove: (value) => setReporterFilter((current) => current.filter((item) => item !== value)),
           },
           {
             label: 'Task type',

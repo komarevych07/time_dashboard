@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react';
 import type { BugReportIssue, DashboardIssue } from '../types/jira';
 import { StoryTimeStats } from './StoryTimeStats';
+import { MultiSelect } from './MultiSelect';
+import { AppliedFilters } from './AppliedFilters';
 
 interface BugAgingReportProps {
   issues: BugReportIssue[];
@@ -53,12 +55,26 @@ export function BugAgingReport({ issues, projectIssues, jiraBaseUrl }: BugAgingR
   const [activeTab, setActiveTab] = useState<'table' | 'timeStats'>('table');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
+  const [reporterFilter, setReporterFilter] = useState<string[]>([]);
   const selectedStartDay = parseDateInput(dateFrom);
   const selectedEndDay = parseDateInput(dateTo);
   const invalidDateRange = selectedStartDay !== null && selectedEndDay !== null && selectedStartDay > selectedEndDay;
 
+  const reporterOptions = useMemo(
+    () => Array.from(new Set(issues.map((issue) => issue.reporter ?? 'Unknown'))).sort(),
+    [issues],
+  );
+
+  const filteredIssues = useMemo(
+    () =>
+      reporterFilter.length === 0
+        ? issues
+        : issues.filter((issue) => reporterFilter.includes(issue.reporter ?? 'Unknown')),
+    [issues, reporterFilter],
+  );
+
   const report = useMemo(() => {
-    const completedIntervals = issues.flatMap((issue) =>
+    const completedIntervals = filteredIssues.flatMap((issue) =>
       issue.lastInProgressExitAt === null
         ? []
         : [{
@@ -129,7 +145,7 @@ export function BugAgingReport({ issues, projectIssues, jiraBaseUrl }: BugAgingR
       rangeKeys,
       includedCount: completedIntervals.length,
     };
-  }, [issues, invalidDateRange, selectedStartDay, selectedEndDay]);
+  }, [filteredIssues, invalidDateRange, selectedStartDay, selectedEndDay]);
 
   return (
     <section className="bug-aging-report">
@@ -155,10 +171,16 @@ export function BugAgingReport({ issues, projectIssues, jiraBaseUrl }: BugAgingR
       </div>
 
       {activeTab === 'timeStats' ? (
-        <StoryTimeStats issues={projectIssues} issueType="Bug" />
+        <StoryTimeStats issues={projectIssues} issueType="Bug" showReporterFilter />
       ) : (
         <>
           <div className="bug-aging-filters">
+            <MultiSelect
+              label="Reporter"
+              options={reporterOptions}
+              selected={reporterFilter}
+              onChange={setReporterFilter}
+            />
             <label className="bug-aging-date-field">
               <span>Date from</span>
               <input
@@ -190,6 +212,16 @@ export function BugAgingReport({ issues, projectIssues, jiraBaseUrl }: BugAgingR
             </button>
           </div>
 
+          <AppliedFilters
+            groups={[
+              {
+                label: 'Reporter',
+                values: reporterFilter,
+                onRemove: (value) => setReporterFilter((current) => current.filter((item) => item !== value)),
+              },
+            ]}
+          />
+
           {invalidDateRange ? (
             <div className="bug-aging-empty">Date from must be earlier than or equal to Date to.</div>
           ) : report === null ? (
@@ -198,8 +230,8 @@ export function BugAgingReport({ issues, projectIssues, jiraBaseUrl }: BugAgingR
             <>
               <div className="bug-aging-summary">
                 <strong>{report.includedCount}</strong> bugs with a completed In Progress interval
-                {issues.length > report.includedCount && (
-                  <span> · {issues.length - report.includedCount} without an In Progress exit excluded</span>
+                {filteredIssues.length > report.includedCount && (
+                  <span> · {filteredIssues.length - report.includedCount} without an In Progress exit excluded</span>
                 )}
               </div>
 

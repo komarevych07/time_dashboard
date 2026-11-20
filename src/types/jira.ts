@@ -28,6 +28,7 @@ export interface DashboardIssue {
   status: string;
   statusSince: string;
   assignee: string | null;
+  reporter: string | null;
   issueType: string;
   url: string;
   category: Category;
@@ -47,6 +48,7 @@ export interface BugReportIssue {
   id: string;
   key: string;
   priority: string;
+  reporter: string | null;
   reportedAt: string;
   lastInProgressExitAt: string | null;
 }

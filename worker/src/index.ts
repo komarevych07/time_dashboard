@@ -46,6 +46,7 @@ interface JiraIssueFields {
   priority?: { name: string } | null;
   status?: { name: string } | null;
   assignee?: { displayName: string } | null;
+  reporter?: { displayName: string } | null;
   issuetype?: { name: string } | null;
   fixVersions?: { name: string }[] | null;
   resolutiondate?: string | null;
@@ -112,6 +113,7 @@ interface DashboardIssue {
   status: string;
   statusSince: string;
   assignee: string | null;
+  reporter: string | null;
   issueType: string;
   url: string;
   category: 'FE' | 'BE' | 'QA' | 'AQA' | 'FLIGHT' | 'BA' | 'UX' | 'EPIC' | 'BUGS' | 'OTHER';
@@ -126,6 +128,7 @@ interface BugReportIssue {
   id: string;
   key: string;
   priority: string;
+  reporter: string | null;
   reportedAt: string;
   lastInProgressExitAt: string | null;
 }
@@ -165,6 +168,7 @@ const ISSUE_FIELDS = [
   'priority',
   'status',
   'assignee',
+  'reporter',
   'issuetype',
   'fixVersions',
   'resolutiondate',
@@ -473,6 +477,7 @@ function buildBugReportIssues(issues: JiraIssue[]): BugReportIssue[] {
       id: issue.id,
       key: issue.key,
       priority: issue.fields.priority?.name ?? 'None',
+      reporter: issue.fields.reporter?.displayName ?? null,
       reportedAt: issue.fields.created,
       lastInProgressExitAt: findLastInProgressExit(issue)?.toISOString() ?? null,
     }));
@@ -523,6 +528,7 @@ function buildBasicDashboardIssue(issue: JiraIssue, baseUrl: string): DashboardI
     status: issue.fields.status?.name ?? 'Unknown',
     statusSince,
     assignee: issue.fields.assignee?.displayName ?? null,
+    reporter: issue.fields.reporter?.displayName ?? null,
     issueType,
     url: `${baseUrl}/browse/${issue.key}`,
     category: categorizeIssue(summary, issueType),
