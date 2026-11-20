@@ -1,5 +1,3 @@
-export type Category = 'FE' | 'BE' | 'QA' | 'AQA' | 'FLIGHT' | 'BA' | 'UX' | 'EPIC' | 'BUGS' | 'OTHER' | 'ALL';
-
 export interface StatusDuration {
   status: string;
   durationSeconds: number;
@@ -31,7 +29,6 @@ export interface DashboardIssue {
   reporter: string | null;
   issueType: string;
   url: string;
-  category: Category;
   updated: string;
   leadTimeSeconds: number;
   statusDurations: StatusDuration[];
@@ -85,9 +82,4 @@ export type SortField = 'key' | 'summary' | 'priority' | 'status' | 'statusSince
 export interface SortState {
   field: SortField;
   direction: SortDirection;
-}
-
-export interface TabConfig {
-  key: Category;
-  label: string;
 }

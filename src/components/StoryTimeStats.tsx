@@ -3,6 +3,7 @@ import { formatDuration } from '../utils/duration';
 import { formatDateTime } from '../utils/formatDateTime';
 import { AppliedFilters } from './AppliedFilters';
 import { MultiSelect } from './MultiSelect';
+import { compareIssueKeys } from '../utils/sorting';
 import type { DashboardIssue, LinkedIssue, StatusDuration } from '../types/jira';
 
 const STATUS_COLORS: Record<string, string> = {
@@ -19,7 +20,7 @@ function statusColor(status: string, index: number): string {
   return STATUS_COLORS[status] ?? FALLBACK_COLORS[index % FALLBACK_COLORS.length];
 }
 
-type SortField = 'status' | 'leadTime';
+type SortField = 'key' | 'status' | 'leadTime';
 type SortDirection = 'asc' | 'desc';
 
 interface StoryTimeStatsProps {
@@ -120,6 +121,11 @@ export function StoryTimeStats({ issues, issueType = 'story', showReporterFilter
     });
 
     return [...filtered].sort((a, b) => {
+      if (sort.field === 'key') {
+        const comparison = compareIssueKeys(a.key, b.key);
+        return sort.direction === 'asc' ? comparison : -comparison;
+      }
+
       if (sort.field === 'status') {
         const comparison = a.status.localeCompare(b.status);
         return sort.direction === 'asc' ? comparison : -comparison;
@@ -260,7 +266,13 @@ export function StoryTimeStats({ issues, issueType = 'story', showReporterFilter
       )}
 
       <div className="story-stats-header">
-        <span className="story-stats-header-cell">Номер</span>
+        <button
+          type="button"
+          className="story-stats-header-cell story-stats-sort-button"
+          onClick={() => toggleSort('key')}
+        >
+          <SortIndicator field="key" sort={sort} /> Номер
+        </button>
         <span className="story-stats-header-cell story-stats-header-title">Тайтл</span>
         <button
           type="button"

@@ -22,7 +22,7 @@ export function sortIssues(
 function compareIssues(a: DashboardIssue, b: DashboardIssue, field: SortField): number {
   switch (field) {
     case 'key':
-      return compareStrings(a.key, b.key);
+      return compareIssueKeys(a.key, b.key);
     case 'summary':
       return compareStrings(a.summary, b.summary);
     case 'priority':
@@ -36,6 +36,18 @@ function compareIssues(a: DashboardIssue, b: DashboardIssue, field: SortField): 
     default:
       return 0;
   }
+}
+
+export function compareIssueKeys(a: string, b: string): number {
+  const [projectA = '', numberA = ''] = a.split('-');
+  const [projectB = '', numberB = ''] = b.split('-');
+  const projectComparison = projectA.localeCompare(projectB);
+
+  if (projectComparison !== 0) {
+    return projectComparison;
+  }
+
+  return (Number(numberA) || 0) - (Number(numberB) || 0);
 }
 
 function compareStrings(a: string, b: string): number {

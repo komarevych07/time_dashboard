@@ -9,31 +9,12 @@ import { StoryTimeStats } from './components/StoryTimeStats';
 import { useDashboard } from './hooks/useDashboard';
 import { exchangeCode } from './services/api';
 import { sortIssues } from './utils/sorting';
-import type { Category, OAuthTokens, SortField, SortState } from './types/jira';
-
-const CATEGORY_LABELS: Record<Category, string> = {
-  FE: 'FE',
-  BE: 'BE',
-  QA: 'QA',
-  AQA: 'AQA',
-  FLIGHT: 'Flight',
-  BA: 'BA',
-  UX: 'UX',
-  EPIC: 'Epic',
-  BUGS: 'Bugs',
-  OTHER: 'Інші',
-  ALL: 'Всі',
-};
-
-const TICKET_TYPE_OPTIONS = Object.entries(CATEGORY_LABELS)
-  .filter(([category]) => category !== 'ALL')
-  .map(([, label]) => label);
+import type { OAuthTokens, SortField, SortState } from './types/jira';
 
 const DEFAULT_SORT: SortState = { field: 'statusSince', direction: 'desc' };
 const OAUTH_STATE_STORAGE_KEY = 'jira_oauth_state';
 
 interface Filters {
-  ticketType: string[];
   priority: string[];
   status: string[];
   assignee: string[];
@@ -47,7 +28,6 @@ function App() {
   const [activeView, setActiveView] = useState<DashboardView>('dashboard');
   const [sort, setSort] = useState<SortState>(DEFAULT_SORT);
   const [filters, setFilters] = useState<Filters>({
-    ticketType: TICKET_TYPE_OPTIONS,
     priority: [],
     status: [],
     assignee: [],
@@ -109,10 +89,6 @@ function App() {
     }
 
     return data.issues.filter((issue) => {
-      if (!filters.ticketType.includes(CATEGORY_LABELS[issue.category])) {
-        return false;
-      }
-
       if (filters.priority.length > 0 && !filters.priority.includes(issue.priority)) {
         return false;
       }
@@ -160,7 +136,6 @@ function App() {
 
   const clearFilters = useCallback(() => {
     setFilters({
-      ticketType: TICKET_TYPE_OPTIONS,
       priority: [],
       status: [],
       assignee: [],
@@ -225,14 +200,6 @@ function App() {
           <>
             <div className="filter-bar">
               <MultiSelect
-                label="Ticket types"
-                options={TICKET_TYPE_OPTIONS}
-                selected={filters.ticketType}
-                allSelectedLabel="Всі"
-                onChange={(selected) => setFilters((current) => ({ ...current, ticketType: selected }))}
-              />
-
-              <MultiSelect
                 label="Priorities"
                 options={filterOptions.priorities}
                 selected={filters.priority}
@@ -265,7 +232,6 @@ function App() {
                 className="filter-clear-button"
                 onClick={clearFilters}
                 disabled={
-                  filters.ticketType.length === TICKET_TYPE_OPTIONS.length &&
                   filters.priority.length === 0 &&
                   filters.status.length === 0 &&
                   filters.assignee.length === 0 &&
@@ -278,15 +244,6 @@ function App() {
 
             <AppliedFilters
               groups={[
-                {
-                  label: 'Типи тікетів',
-                  values: filters.ticketType.length === TICKET_TYPE_OPTIONS.length ? [] : filters.ticketType,
-                  onRemove: (value) =>
-                    setFilters((current) => ({
-                      ...current,
-                      ticketType: current.ticketType.filter((item) => item !== value),
-                    })),
-                },
                 {
                   label: 'Пріоритети',
                   values: filters.priority,

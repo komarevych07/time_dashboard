@@ -116,7 +116,6 @@ interface DashboardIssue {
   reporter: string | null;
   issueType: string;
   url: string;
-  category: 'FE' | 'BE' | 'QA' | 'AQA' | 'FLIGHT' | 'BA' | 'UX' | 'EPIC' | 'BUGS' | 'OTHER';
   updated: string;
   leadTimeSeconds: number;
   statusDurations: StatusDuration[];
@@ -531,7 +530,6 @@ function buildBasicDashboardIssue(issue: JiraIssue, baseUrl: string): DashboardI
     reporter: issue.fields.reporter?.displayName ?? null,
     issueType,
     url: `${baseUrl}/browse/${issue.key}`,
-    category: categorizeIssue(summary, issueType),
     updated: issue.fields.updated,
     leadTimeSeconds,
     statusDurations,
@@ -764,48 +762,6 @@ function computeStatusDurations(issue: JiraIssue): StatusDuration[] {
     durationSeconds: Math.round(durationMs / 1000),
     percentage: total > 0 ? Math.round((durationMs / total) * 1000) / 10 : 0,
   }));
-}
-
-function categorizeIssue(summary: string, issueType: string): DashboardIssue['category'] {
-  const normalizedSummary = summary.toUpperCase();
-
-  if (normalizedSummary.includes('[FE]')) {
-    return 'FE';
-  }
-
-  if (normalizedSummary.includes('[BE]')) {
-    return 'BE';
-  }
-
-  if (normalizedSummary.includes('[QA]')) {
-    return 'QA';
-  }
-
-  if (normalizedSummary.includes('[AQA]')) {
-    return 'AQA';
-  }
-
-  if (normalizedSummary.includes('[FLIGHT]')) {
-    return 'FLIGHT';
-  }
-
-  if (normalizedSummary.includes('[BA]')) {
-    return 'BA';
-  }
-
-  if (normalizedSummary.includes('[UX]')) {
-    return 'UX';
-  }
-
-  if (issueType.toLowerCase() === 'epic') {
-    return 'EPIC';
-  }
-
-  if (issueType.toLowerCase() === 'bug') {
-    return 'BUGS';
-  }
-
-  return 'OTHER';
 }
 
 async function fetchJira(
