@@ -48,6 +48,7 @@ interface JiraIssueFields {
   assignee?: { displayName: string } | null;
   issuetype?: { name: string } | null;
   fixVersions?: { name: string }[] | null;
+  resolutiondate?: string | null;
   subtasks?: JiraLinkedIssue[];
   issuelinks?: {
     id: string;
@@ -64,6 +65,9 @@ interface JiraIssue {
   self: string;
   fields: JiraIssueFields;
   changelog?: {
+    startAt?: number;
+    maxResults?: number;
+    total?: number;
     histories: JiraChangelogEntry[];
   };
 }
@@ -128,6 +132,7 @@ interface BugReportIssue {
 
 interface DashboardResponse {
   board: { id: number; name: string };
+  jiraBaseUrl: string;
   issues: DashboardIssue[];
   bugReportIssues: BugReportIssue[];
   loadedAt: string;
@@ -151,6 +156,8 @@ interface AccessibleResource {
 
 const DEFAULT_MAX_RESULTS = 100;
 const JIRA_RETRY_DELAYS_MS = [500, 1500, 3000];
+const CHANGELOG_PAGE_SIZE = 100;
+const CHANGELOG_CONCURRENCY = 5;
 const ISSUE_FIELDS = [
   'summary',
   'created',
@@ -160,6 +167,7 @@ const ISSUE_FIELDS = [
   'assignee',
   'issuetype',
   'fixVersions',
+  'resolutiondate',
   'subtasks',
   'issuelinks',
 ];
@@ -317,11 +325,13 @@ async function handleDashboard(request: Request, env: Env): Promise<Response> {
     const context: JiraApiContext = { accessToken, jiraApiBase };
 
     const page = await fetchProjectIssuesPage(context, env.PROJECT_KEY, nextPageToken);
+    await ensureFullChangelogs(context, page.issues);
     const dashboardIssues = await buildDashboardIssues(page.issues, env.JIRA_BASE_URL);
     const bugReportIssues = buildBugReportIssues(page.issues);
 
     const response: DashboardResponse = {
       board: { id: 0, name: env.BOARD_NAME },
+      jiraBaseUrl: env.JIRA_BASE_URL.replace(/\/$/, ''),
       issues: dashboardIssues,
       bugReportIssues,
       loadedAt: new Date().toISOString(),
@@ -414,6 +424,46 @@ async function fetchProjectIssuesPage(
     issues: data.issues ?? [],
     nextPageToken: data.isLast === true ? null : data.nextPageToken ?? null,
   };
+}
+
+async function ensureFullChangelogs(context: JiraApiContext, issues: JiraIssue[]): Promise<void> {
+  const truncated = issues.filter((issue) => {
+    const changelog = issue.changelog;
+    return changelog !== undefined
+      && typeof changelog.total === 'number'
+      && changelog.histories.length < changelog.total;
+  });
+
+  for (let index = 0; index < truncated.length; index += CHANGELOG_CONCURRENCY) {
+    await Promise.all(
+      truncated.slice(index, index + CHANGELOG_CONCURRENCY).map((issue) => loadFullChangelog(context, issue)),
+    );
+  }
+}
+
+async function loadFullChangelog(context: JiraApiContext, issue: JiraIssue): Promise<void> {
+  const histories: JiraChangelogEntry[] = [];
+  let startAt = 0;
+
+  while (true) {
+    const url = `${context.jiraApiBase}/rest/api/3/issue/${encodeURIComponent(issue.key)}/changelog?startAt=${startAt}&maxResults=${CHANGELOG_PAGE_SIZE}`;
+    const response = await fetchJira(context, url);
+    const data = (await response.json()) as {
+      values?: JiraChangelogEntry[];
+      isLast?: boolean;
+      total?: number;
+    };
+    const values = data.values ?? [];
+
+    histories.push(...values);
+    startAt += values.length;
+
+    if (data.isLast === true || values.length === 0 || (typeof data.total === 'number' && startAt >= data.total)) {
+      break;
+    }
+  }
+
+  issue.changelog = { startAt: 0, maxResults: histories.length, total: histories.length, histories };
 }
 
 function buildBugReportIssues(issues: JiraIssue[]): BugReportIssue[] {
@@ -618,12 +668,12 @@ function computeLeadTimeSeconds(issue: JiraIssue): number {
   const createdTime = new Date(issue.fields.created).getTime();
   const currentStatus = issue.fields.status?.name ?? '';
 
-  if (currentStatus.toLowerCase() === 'done') {
+  if (currentStatus.trim().toLowerCase() === 'done') {
     const doneTransition = findLatestDoneTransition(issue);
+    const resolutionDate = issue.fields.resolutiondate ? new Date(issue.fields.resolutiondate) : null;
+    const doneAt = doneTransition ?? resolutionDate ?? new Date(issue.fields.updated);
 
-    if (doneTransition !== null) {
-      return Math.max(0, Math.round((doneTransition.getTime() - createdTime) / 1000));
-    }
+    return Math.max(0, Math.round((doneAt.getTime() - createdTime) / 1000));
   }
 
   return Math.max(0, Math.round((Date.now() - createdTime) / 1000));

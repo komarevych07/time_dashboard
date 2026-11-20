@@ -289,10 +289,11 @@ export function StoryTimeStats({ issues, issueType = 'story' }: StoryTimeStatsPr
               <span className="story-stats-assignee">{story.assignee ?? 'Unassigned'}</span>
             </div>
 
-            <StatusDurationBar durations={story.statusDurations} />
+            <StatusDurationLegend durations={story.statusDurations} />
 
             {isExpanded && (
               <div className="story-stats-linked">
+                <StatusDurationStrip durations={story.statusDurations} />
                 {story.linkedIssues.length === 0 ? (
                   <div className="story-stats-linked-empty">Немає прилінкованих задач</div>
                 ) : (
@@ -341,40 +342,56 @@ function SortIndicator({
 }
 
 function StatusDurationBar({ durations }: { durations: StatusDuration[] }) {
+  return (
+    <>
+      <StatusDurationStrip durations={durations} />
+      <StatusDurationLegend durations={durations} />
+    </>
+  );
+}
+
+function StatusDurationStrip({ durations }: { durations: StatusDuration[] }) {
   if (durations.length === 0) {
     return null;
   }
 
   return (
-    <>
-      <div className="story-stats-bar" role="img" aria-label="Розподіл часу за статусами">
-        {durations.map((duration, index) => (
-          <div
-            key={`${duration.status}-${index}`}
-            className="story-stats-segment"
-            style={{
-              width: `${Math.max(duration.percentage, 1)}%`,
-              backgroundColor: statusColor(duration.status, index),
-            }}
-            title={`${duration.status}: ${formatDuration(Math.round(duration.durationSeconds / 60))} (${duration.percentage}%)`}
+    <div className="story-stats-bar" role="img" aria-label="Розподіл часу за статусами">
+      {durations.map((duration, index) => (
+        <div
+          key={`${duration.status}-${index}`}
+          className="story-stats-segment"
+          style={{
+            width: `${Math.max(duration.percentage, 1)}%`,
+            backgroundColor: statusColor(duration.status, index),
+          }}
+          title={`${duration.status}: ${formatDuration(Math.round(duration.durationSeconds / 60))} (${duration.percentage}%)`}
+        />
+      ))}
+    </div>
+  );
+}
+
+function StatusDurationLegend({ durations }: { durations: StatusDuration[] }) {
+  if (durations.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="story-stats-legend">
+      {durations.map((duration, index) => (
+        <span key={`${duration.status}-${index}`} className="story-stats-legend-item">
+          <span
+            className="story-stats-legend-dot"
+            style={{ backgroundColor: statusColor(duration.status, index) }}
           />
-        ))}
-      </div>
-      <div className="story-stats-legend">
-        {durations.map((duration, index) => (
-          <span key={`${duration.status}-${index}`} className="story-stats-legend-item">
-            <span
-              className="story-stats-legend-dot"
-              style={{ backgroundColor: statusColor(duration.status, index) }}
-            />
-            <span className="story-stats-legend-label">{duration.status}</span>
-            <span className="story-stats-legend-time">
-              {formatDuration(Math.round(duration.durationSeconds / 60))}
-            </span>
+          <span className="story-stats-legend-label">{duration.status}</span>
+          <span className="story-stats-legend-time">
+            {formatDuration(Math.round(duration.durationSeconds / 60))}
           </span>
-        ))}
-      </div>
-    </>
+        </span>
+      ))}
+    </div>
   );
 }
 

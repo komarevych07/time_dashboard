@@ -83,6 +83,7 @@ export function useDashboard({
         bugReportIssues.push(...page.bugReportIssues);
         result = {
           board: page.board,
+          jiraBaseUrl: page.jiraBaseUrl,
           issues: [...issues],
           bugReportIssues: [...bugReportIssues],
           loadedAt: page.loadedAt,

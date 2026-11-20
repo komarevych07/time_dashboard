@@ -53,6 +53,7 @@ export interface BugReportIssue {
 
 export interface DashboardData {
   board: BoardInfo;
+  jiraBaseUrl: string;
   issues: DashboardIssue[];
   bugReportIssues: BugReportIssue[];
   loadedAt: string;

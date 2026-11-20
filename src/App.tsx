@@ -216,7 +216,11 @@ function App() {
         ) : data === null ? null : activeView === 'storyStats' ? (
           <StoryTimeStats issues={data.issues} />
         ) : activeView === 'bugAging' ? (
-          <BugAgingReport issues={data.bugReportIssues} projectIssues={data.issues} />
+          <BugAgingReport
+            issues={data.bugReportIssues}
+            projectIssues={data.issues}
+            jiraBaseUrl={data.jiraBaseUrl ?? ''}
+          />
         ) : (
           <>
             <div className="filter-bar">

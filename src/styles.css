@@ -1213,6 +1213,15 @@ body {
   background: #ffedd5;
 }
 
+.bug-aging-total-link {
+  color: var(--color-primary);
+  text-decoration: underline;
+}
+
+.bug-aging-total-link:hover {
+  color: var(--color-primary-hover);
+}
+
 .bug-aging-totals-row th,
 .bug-aging-totals-row td {
   font-weight: 700;

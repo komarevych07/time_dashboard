@@ -5,19 +5,30 @@ import { StoryTimeStats } from './StoryTimeStats';
 interface BugAgingReportProps {
   issues: BugReportIssue[];
   projectIssues: DashboardIssue[];
+  jiraBaseUrl: string;
 }
 
 const PRIORITY_ORDER = ['Highest', 'High', 'Medium', 'Low', 'Lowest', 'None'];
-const DAY_MS = 24 * 60 * 60 * 1000;
 
-function toUtcDay(value: string): number {
+function toLocalDay(value: string): number {
   const date = new Date(value);
-  return Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
+}
+
+function nextDay(value: number): number {
+  const date = new Date(value);
+  date.setDate(date.getDate() + 1);
+  return date.getTime();
 }
 
 function formatDay(value: number): string {
   const date = new Date(value);
-  return `${String(date.getUTCMonth() + 1).padStart(2, '0')}/${String(date.getUTCDate()).padStart(2, '0')}`;
+  return `${String(date.getMonth() + 1).padStart(2, '0')}/${String(date.getDate()).padStart(2, '0')}`;
+}
+
+function buildJiraSearchUrl(jiraBaseUrl: string, keys: string[]): string {
+  const jql = `key in (${keys.join(', ')}) ORDER BY priority DESC, key ASC`;
+  return `${jiraBaseUrl}/issues/?jql=${encodeURIComponent(jql)}`;
 }
 
 function comparePriorities(left: string, right: string): number {
@@ -35,10 +46,10 @@ function parseDateInput(value: string): number | null {
   }
 
   const [year, month, day] = value.split('-').map(Number);
-  return Date.UTC(year, month - 1, day);
+  return new Date(year, month - 1, day).getTime();
 }
 
-export function BugAgingReport({ issues, projectIssues }: BugAgingReportProps) {
+export function BugAgingReport({ issues, projectIssues, jiraBaseUrl }: BugAgingReportProps) {
   const [activeTab, setActiveTab] = useState<'table' | 'timeStats'>('table');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
@@ -52,8 +63,8 @@ export function BugAgingReport({ issues, projectIssues }: BugAgingReportProps) {
         ? []
         : [{
             ...issue,
-            reportedDay: toUtcDay(issue.reportedAt),
-            exitDay: toUtcDay(issue.lastInProgressExitAt),
+            reportedDay: toLocalDay(issue.reportedAt),
+            exitDay: toLocalDay(issue.lastInProgressExitAt),
           }],
     );
 
@@ -72,7 +83,7 @@ export function BugAgingReport({ issues, projectIssues }: BugAgingReportProps) {
 
     const days: number[] = [];
 
-    for (let day = startDay; day <= endDay; day += DAY_MS) {
+    for (let day = startDay; day <= endDay; day = nextDay(day)) {
       days.push(day);
     }
 
@@ -91,11 +102,33 @@ export function BugAgingReport({ issues, projectIssues }: BugAgingReportProps) {
       );
     }
 
-    const dayTotals = days.map((_, index) =>
-      priorities.reduce((total, priority) => total + (counts.get(priority)?.[index] ?? 0), 0),
+    const dayKeys = days.map((day) =>
+      completedIntervals
+        .filter((issue) => issue.reportedDay <= day && issue.exitDay >= day)
+        .map((issue) => issue.key),
     );
+    const dayTotals = dayKeys.map((keys) => keys.length);
+    const rangeIssues = completedIntervals.filter(
+      (issue) => issue.reportedDay <= endDay && issue.exitDay >= startDay,
+    );
+    const priorityUniqueCounts = new Map<string, number>(
+      priorities.map((priority) => [
+        priority,
+        rangeIssues.filter((issue) => issue.priority === priority).length,
+      ]),
+    );
+    const rangeKeys = rangeIssues.map((issue) => issue.key);
 
-    return { days, priorities, counts, dayTotals, includedCount: completedIntervals.length };
+    return {
+      days,
+      priorities,
+      counts,
+      dayTotals,
+      dayKeys,
+      priorityUniqueCounts,
+      rangeKeys,
+      includedCount: completedIntervals.length,
+    };
   }, [issues, invalidDateRange, selectedStartDay, selectedEndDay]);
 
   return (
@@ -191,17 +224,43 @@ export function BugAgingReport({ issues, projectIssues }: BugAgingReportProps) {
                           {values.map((count, index) => (
                             <td key={report.days[index]} className={count > 0 ? 'bug-aging-count-active' : ''}>{count}</td>
                           ))}
-                          <td className="bug-aging-total-cell">{values.reduce((sum, count) => sum + count, 0)}</td>
+                          <td className="bug-aging-total-cell">{report.priorityUniqueCounts.get(priority) ?? 0}</td>
                         </tr>
                       );
                     })}
                     <tr className="bug-aging-totals-row">
                       <th className="bug-aging-priority-cell" scope="row">Total</th>
                       {report.dayTotals.map((total, index) => (
-                        <td key={report.days[index]}>{total}</td>
+                        <td key={report.days[index]}>
+                          {total > 0 && jiraBaseUrl !== '' ? (
+                            <a
+                              href={buildJiraSearchUrl(jiraBaseUrl, report.dayKeys[index]!)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="bug-aging-total-link"
+                              title={`Відкрити ${total} багів за ${formatDay(report.days[index]!)} в Jira`}
+                            >
+                              {total}
+                            </a>
+                          ) : (
+                            total
+                          )}
+                        </td>
                       ))}
                       <td className="bug-aging-total-cell">
-                        {report.dayTotals.reduce((sum, total) => sum + total, 0)}
+                        {report.rangeKeys.length > 0 && jiraBaseUrl !== '' ? (
+                          <a
+                            href={buildJiraSearchUrl(jiraBaseUrl, report.rangeKeys)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="bug-aging-total-link"
+                            title={`Відкрити ${report.rangeKeys.length} унікальних багів за період в Jira`}
+                          >
+                            {report.rangeKeys.length}
+                          </a>
+                        ) : (
+                          report.rangeKeys.length
+                        )}
                       </td>
                     </tr>
                   </tbody>
